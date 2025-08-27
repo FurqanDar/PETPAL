@@ -551,6 +551,7 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
         self.calculate_filter_flags_and_signs(comp_min_val=self.pca_comp_filter_min_val,
                                               threshold=self.pca_comp_filter_flag_threshold)
         self._fitting_params = self._generate_quantile_params(num_components=self.num_components)
+        self.update_pca_obj_peak_arg_and_val_using_pc_vectors()
 
     @property
     def pca_comp_filter_flag_threshold(self) -> float:
@@ -717,6 +718,14 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
                                                                     comp_min_val=comp_min_val,
                                                                     threshold=threshold)
         self.filter_signs = self.get_pca_filter_signs_from_flags(pca_component_filter_flags=self.pca_filter_flags)
+
+    def update_pca_obj_peak_arg_and_val_using_pc_vectors(self, num_pcs: int = 3, num_init_frames: int = 10):
+        _pc_comps_peak_args = []
+        for a_comp in self.pca_obj.components_[:num_pcs]:
+            _pc_comps_peak_args.append(np.argmax(a_comp[:num_init_frames]))
+        new_peak_arg = np.min(_pc_comps_peak_args)
+        self.mask_peak_arg = new_peak_arg
+        self.mask_peak_val = self.mask_avg[new_peak_arg] + 3. * self.mask_std[new_peak_arg]
 
     def residual(self,
                  params: lmfit.Parameters,
