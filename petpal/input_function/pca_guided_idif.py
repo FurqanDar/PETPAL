@@ -134,6 +134,8 @@ class PCAGuidedIdifBase(object):
         self.mask_voxel_tacs = extract_masked_voxels(input_image=ants.image_read(self.image_path),
                                                      mask_image=ants.image_read(self.mask_path),
                                                      verbose=self.verbose)
+        self.mask_indecies = np.asarray(ants.image_read(self.mask_path).nonzero())
+        self.selected_voxels_image_mask_indecies: np.ndarray | None = None
 
         self.mask_avg = np.mean(self.mask_voxel_tacs, axis=0)
         self.mask_std = np.std(self.mask_voxel_tacs, axis=0)
@@ -269,6 +271,7 @@ class PCAGuidedIdifBase(object):
          """
         assert self.analysis_has_run, "The .run() has not been called yet."
         self.selected_voxels_tacs = self.mask_voxel_tacs[self.selected_voxels_mask]
+        self.selected_voxels_image_mask_indecies = self.mask_indecies[:, self.selected_voxels_mask]
         self.idif_vals = np.mean(self.selected_voxels_tacs, axis=0)
         self.idif_errs = np.std(self.selected_voxels_tacs, axis=0)
         self.selected_voxels_tacs = self.pca_obj.inverse_transform(self.pca_fit[self.selected_voxels_mask])
