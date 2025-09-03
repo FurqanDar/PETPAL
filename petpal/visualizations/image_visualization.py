@@ -16,6 +16,7 @@ TODO:
 
 import os
 from typing import Iterable
+import ants
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as mpl_animation
@@ -23,6 +24,31 @@ from ..utils import image_io as pet_pim
 
 nifty_loader = pet_pim.safe_load_4dpet_nifti
 
+
+def plot_mean_slices_of_img(img: ants.ANTsImage,
+                            vmin: float = 0.0,
+                            vmax: float = 10.0,
+                            cmap: str = 'gray_r',
+                            figsize=(12, 4),
+                            fig=None,
+                            ax=None,
+                            **im_kwargs):
+    if fig is not None and ax is not None:
+        assert ax.shape == (3,)
+        myFig, myAx = fig, ax
+    else:
+        myFig, myAx = plt.subplots(1, 3, constrained_layout=True, figsize=figsize)
+
+    sag_view = img[:, :, :].mean(axis=0).T
+    cor_view = img[:, :, :].mean(axis=1).T
+    ax_view = img[:, :, :].mean(axis=2).T
+    imKW = dict(interpolation=None, origin='lower', vmin=vmin, vmax=vmax, aspect='auto', cmap=cmap)
+    imKW = imKW | im_kwargs
+    cb1 = myAx[0].imshow(sag_view, **imKW)
+    cb2 = myAx[1].imshow(cor_view, **imKW)
+    cb3 = myAx[2].imshow(ax_view, **imKW)
+
+    return myFig, myAx, (cb1, cb2, cb3)
 
 class NiftiGifCreator:
     """
