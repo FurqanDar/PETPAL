@@ -25,7 +25,7 @@ from ..utils import image_io as pet_pim
 nifty_loader = pet_pim.safe_load_4dpet_nifti
 
 
-def plot_mean_slices_of_img(img: ants.ANTsImage,
+def plot_mean_slices_of_img(img: ants.ANTsImage | np.ndarray,
                             vmin: float = 0.0,
                             vmax: float = None,
                             cmap: str = 'gray_r',
@@ -40,7 +40,7 @@ def plot_mean_slices_of_img(img: ants.ANTsImage,
         myFig, myAx = plt.subplots(1, 3, constrained_layout=True, figsize=figsize)
 
     if vmax is None:
-        _vmax = np.quantile(img.numpy().flatten(), 0.99)
+        _vmax = np.quantile(img.flatten(), 0.99)
     else:
         _vmax = vmax
     sag_view = img[:, :, :].mean(axis=0).T
