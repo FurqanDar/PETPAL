@@ -8,6 +8,9 @@ optional path for saving the output of the decorated function.
 
 import functools
 import ants
+from matplotlib import pyplot as plt
+
+from ..visualizations.image_visualization import plot_mean_slices_of_img
 
 
 def ANTsImageToANTsImage(func):
@@ -105,5 +108,11 @@ def ANTsImageToANTsImage(func):
         out_img = func(in_image, *args, **kwargs)
         if out_path is not None:
             ants.image_write(out_img, out_path)
+            if out_path.endswith('.nii.gz'):
+                plot_mean_slices_of_img(out_img, vmin=0, vmax=None)
+                plt.savefig(out_path.replace('.nii.gz', '.png'),
+                            bbox_inches='tight', transparent=False, dpi=150)
+                plt.close()
+
         return out_img
     return wrapper

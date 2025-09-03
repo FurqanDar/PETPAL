@@ -27,7 +27,7 @@ nifty_loader = pet_pim.safe_load_4dpet_nifti
 
 def plot_mean_slices_of_img(img: ants.ANTsImage,
                             vmin: float = 0.0,
-                            vmax: float = 10.0,
+                            vmax: float = None,
                             cmap: str = 'gray_r',
                             figsize=(12, 4),
                             fig=None,
@@ -39,6 +39,8 @@ def plot_mean_slices_of_img(img: ants.ANTsImage,
     else:
         myFig, myAx = plt.subplots(1, 3, constrained_layout=True, figsize=figsize)
 
+    if vmax is None:
+        vmax = np.quantile(img.numpy().flatten(), 0.99)
     sag_view = img[:, :, :].mean(axis=0).T
     cor_view = img[:, :, :].mean(axis=1).T
     ax_view = img[:, :, :].mean(axis=2).T
