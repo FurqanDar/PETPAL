@@ -40,7 +40,10 @@ def plot_mean_slices_of_img(img: ants.ANTsImage | np.ndarray,
         myFig, myAx = plt.subplots(1, 3, constrained_layout=True, figsize=figsize)
 
     if vmax is None:
-        _vmax = np.quantile(img.flatten(), 0.99)
+        if len(img.unique()) == 2:
+            _vmax = img[img!=0].mean()/5.0
+        else:
+            _vmax = np.quantile(img.flatten(), 0.99)
     else:
         _vmax = vmax
     sag_view = img[:, :, :].mean(axis=0).T
