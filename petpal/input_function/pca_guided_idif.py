@@ -729,7 +729,7 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
         new_peak_arg = np.min(_pc_comps_peak_args)
         new_peak_arg -= frame_window
         self.mask_peak_arg += new_peak_arg
-        self.mask_peak_val = self.mask_avg[new_peak_arg] + 3. * self.mask_std[new_peak_arg]
+        self.mask_peak_val = self.mask_avg[self.mask_peak_arg] + 3. * self.mask_std[self.mask_peak_arg]
 
     def residual(self,
                  params: lmfit.Parameters,
