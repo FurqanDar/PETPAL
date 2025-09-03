@@ -727,7 +727,8 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
         for a_comp in self.pca_obj.components_[:num_pcs]:
             _pc_comps_peak_args.append(np.argmax(a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1]))
         new_peak_arg = np.min(_pc_comps_peak_args)
-        self.mask_peak_arg = new_peak_arg
+        new_peak_arg -= frame_window
+        self.mask_peak_arg += new_peak_arg
         self.mask_peak_val = self.mask_avg[new_peak_arg] + 3. * self.mask_std[new_peak_arg]
 
     def residual(self,
