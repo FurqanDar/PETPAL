@@ -109,12 +109,15 @@ def ANTsImageToANTsImage(func):
         if out_path is not None:
             ants.image_write(out_img, out_path)
             if out_path.endswith('.nii.gz'):
-                print("Writing output image")
-                print(type(out_img))
-            #     plot_mean_slices_of_img(out_img, vmin=0, vmax=None)
-            #     plt.savefig(out_path.replace('.nii.gz', '.png'),
-            #                 bbox_inches='tight', transparent=False, dpi=150)
-            #     plt.close()
+                if out_img.dimension == 3:
+                    plot_mean_slices_of_img(out_img, vmin=0, vmax=None)
+                elif out_img.dimension == 4:
+                    plot_mean_slices_of_img(out_img.mean(-1), vmin=0, vmax=None)
+                else:
+                    raise ValueError('out_img must have dimension 3 or 4')
+                plt.savefig(out_path.replace('.nii.gz', '.png'),
+                            bbox_inches='tight', transparent=False, dpi=150)
+                plt.close()
 
         return out_img
     return wrapper
