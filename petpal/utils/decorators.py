@@ -109,6 +109,7 @@ def ANTsImageToANTsImage(func):
         if out_path is not None:
             ants.image_write(out_img, out_path)
             if out_path.endswith('.nii.gz'):
+                print("Writing output image")
                 plot_mean_slices_of_img(out_img, vmin=0, vmax=None)
                 plt.savefig(out_path.replace('.nii.gz', '.png'),
                             bbox_inches='tight', transparent=False, dpi=150)
