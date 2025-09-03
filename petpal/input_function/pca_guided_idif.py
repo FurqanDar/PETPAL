@@ -719,10 +719,13 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
                                                                     threshold=threshold)
         self.filter_signs = self.get_pca_filter_signs_from_flags(pca_component_filter_flags=self.pca_filter_flags)
 
-    def update_pca_obj_peak_arg_and_val_using_pc_vectors(self, num_pcs: int = 3, num_init_frames: int = 10):
+    def update_pca_obj_peak_arg_and_val_using_pc_vectors(self, num_pcs: int = 3, frame_window: int = 1):
+        assert frame_window >= 1, "`frame_window` must be greater than 1."
+        assert self.mask_peak_arg + frame_window < len(self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
+        assert self.mask_peak_arg - frame_window >= 0, "`frame_window` is too big on the left boundary."
         _pc_comps_peak_args = []
         for a_comp in self.pca_obj.components_[:num_pcs]:
-            _pc_comps_peak_args.append(np.argmax(a_comp[:num_init_frames]))
+            _pc_comps_peak_args.append(np.argmax(a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1]))
         new_peak_arg = np.min(_pc_comps_peak_args)
         self.mask_peak_arg = new_peak_arg
         self.mask_peak_val = self.mask_avg[new_peak_arg] + 3. * self.mask_std[new_peak_arg]
