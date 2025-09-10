@@ -408,6 +408,19 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
         self.num_of_voxels: int | None = None
         self.selected_component: int | None = None
 
+    def get_pca_obj_earliest_pc_around_mask_peak(self,
+                                                 num_pcs: int = 3,
+                                                 frame_window: int = 1):
+        assert frame_window >= 1, "`frame_window` must be greater than 1."
+        assert self.mask_peak_arg + frame_window < len(
+            self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
+        assert self.mask_peak_arg - frame_window >= 0, "`frame_window` is too big on the left boundary."
+        _pc_comps_peak_args = np.zeros(num_pcs, int)
+        for compID, a_comp in enumerate(self.pca_obj.components_[:num_pcs]):
+            _pc_comps_peak_args[compID] = np.argmax(
+                    a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1])
+        return np.argmin(_pc_comps_peak_args)
+
     @staticmethod
     def calculate_top_pc_voxels_mask(pca_obj: PCA,
                                      pca_fit: np.ndarray,
@@ -437,7 +450,9 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
         pc_comp_argsort = np.argsort(pca_fit[:, pca_component])[::-1]
         return pc_comp_argsort[:number_of_voxels]
 
-    def run(self, selected_component: int, num_of_voxels: int) -> None:
+    def run(self,
+            selected_component: int | str = 'auto',
+            num_of_voxels: int = 50) -> None:
         """Executes the PCA-guided IDIF analysis by selecting voxels and calculating TACs.
 
         Args:
@@ -460,7 +475,10 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
             the necessary state attributes.
         """
         assert num_of_voxels > 2, "num_of_voxels must be greater than 2."
-        self.selected_component = selected_component
+        if selected_component == 'auto':
+            self.selected_component = self.get_pca_obj_earliest_pc_around_mask_peak()
+        else:
+            self.selected_component = selected_component
         self.num_of_voxels = num_of_voxels
         self.selected_voxels_mask = self.calculate_top_pc_voxels_mask(pca_obj=self.pca_obj,
                                                                       pca_fit=self.pca_fit,
