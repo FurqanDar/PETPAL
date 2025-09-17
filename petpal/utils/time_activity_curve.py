@@ -934,7 +934,7 @@ class MultiTACAnalysisMixin:
             for a_part in segparts:
                 segpart_capped = capitalize_first(input_str=a_part)
                 segparts_capped += [segpart_capped]
-            segname = ''.join(segparts)
+            segname = ''.join(segparts_capped)
             return segname
 
     def infer_segmentation_labels_for_tacs(self):
