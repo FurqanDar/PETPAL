@@ -12,7 +12,7 @@ from .segmentation_tools import combine_regions_as_mask, unique_segmentation_lab
 from ..utils import image_io
 from ..utils.scan_timing import ScanTimingInfo
 from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      str_to_camel_case)
+                                      str_to_pascal_case)
 from ..utils.time_activity_curve import TimeActivityCurve
 
 
@@ -185,9 +185,9 @@ def write_tacs(input_image_path: str,
                                        uncertainty=tac_uncertainty)
         if out_tac_prefix:
             out_tac_path = os.path.join(out_tac_dir,
-                                        f'{out_tac_prefix}_seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
+                                        f'{out_tac_prefix}_seg-{str_to_pascal_case(regions_abrev[i])}_tac.tsv')
         else:
-            out_tac_path = os.path.join(out_tac_dir, f'seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
+            out_tac_path = os.path.join(out_tac_dir, f'seg-{str_to_pascal_case(regions_abrev[i])}_tac.tsv')
         region_tac.to_tsv(filename=out_tac_path)
     if verbose:
         print('Finished writing TACs.')
@@ -310,7 +310,7 @@ class WriteRegionalTacs:
         self.scan_timing = ScanTimingInfo.from_nifti(input_image_path)
 
         label_map = image_io.read_label_map_tsv(label_map_file=label_map_path)
-        self.region_names = [str_to_camel_case(label) for label in label_map['abbreviation']]
+        self.region_names = [str_to_pascal_case(label) for label in label_map['abbreviation']]
         self.region_maps = label_map['mapping'].to_list()
 
     def set_tac_extraction_func(self, tac_extraction_func: Callable):

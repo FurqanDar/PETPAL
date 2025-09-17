@@ -353,7 +353,7 @@ def capitalize_first_char_of_str(input_str: str) -> str:
     return output_str
 
 
-def str_to_camel_case(input_str) -> str:
+def str_to_pascal_case(input_str) -> str:
     """
     Take a string and return the string converted to camel case.
 
@@ -373,5 +373,5 @@ def str_to_camel_case(input_str) -> str:
     for part in split_str:
         capped_str = capitalize_first(input_str=part)
         capped_split_str += [capped_str]
-    camel_case_str = ''.join(capped_split_str)
-    return camel_case_str
+    pascal_case_str = ''.join(capped_split_str)
+    return pascal_case_str

@@ -9,7 +9,7 @@ import ants
 
 from ..utils.image_io import read_label_map_tsv
 from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      str_to_camel_case)
+                                      str_to_pascal_case)
 from ..utils.scan_timing import ScanTimingInfo
 from ..utils.time_activity_curve import TimeActivityCurve
 from ..preproc.segmentation_tools import unique_segmentation_labels
@@ -109,7 +109,7 @@ class Sgtm:
         else:
             seg_label_map = read_label_map_tsv(label_map_file=self.segmentation_label_map_path)
             region_index_map = seg_label_map['mapping'].to_list()
-            region_short_names = [str_to_camel_case(label) for label in seg_label_map['abbreviation']]
+            region_short_names = [str_to_pascal_case(label) for label in seg_label_map['abbreviation']]
         return (region_index_map, region_short_names)
 
 
