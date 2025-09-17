@@ -313,7 +313,7 @@ class Sgtm:
 
         tac_array = np.asarray(sgtm_result).T
 
-        for i, (label, name) in enumerate(zip(self.unique_labels)):
+        for i, (label, name) in enumerate(zip(*self.unique_labels)):
             pvc_tac = TimeActivityCurve(times=tac_times,
                                         activity=tac_array[i,:])
             out_tac_path = os.path.join(f'{out_tac_dir}', f'{out_tac_prefix}_seg-{name}_tac.tsv')
