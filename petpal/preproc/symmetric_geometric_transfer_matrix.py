@@ -4,18 +4,14 @@ transfer matrix (sGTM) method.
 """
 import os
 import numpy as np
-from nibabel.freesurfer import read_label
 from scipy.ndimage import gaussian_filter
 import ants
-import pandas as pd
 
 from utils.image_io import read_label_map_tsv
 from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      str_to_camel_case,
-                                      capitalize_first_char_of_str)
+                                      str_to_camel_case)
 from ..utils.scan_timing import ScanTimingInfo
 from ..utils.time_activity_curve import TimeActivityCurve
-from ..utils.bids_utils import gen_bids_like_filename, parse_path_to_get_subject_and_session_id
 from ..preproc.segmentation_tools import unique_segmentation_labels
 
 class Sgtm:
