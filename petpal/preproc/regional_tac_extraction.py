@@ -1,7 +1,6 @@
 """
 Regional TAC extraction
 """
-import re
 import os
 from collections.abc import Callable
 import pathlib
@@ -13,8 +12,7 @@ from .segmentation_tools import combine_regions_as_mask, unique_segmentation_lab
 from ..utils import image_io
 from ..utils.scan_timing import ScanTimingInfo
 from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      str_to_camel_case,
-                                      capitalize_first_char_of_str)
+                                      str_to_camel_case)
 from ..utils.time_activity_curve import TimeActivityCurve
 
 
@@ -187,9 +185,9 @@ def write_tacs(input_image_path: str,
                                        uncertainty=tac_uncertainty)
         if out_tac_prefix:
             out_tac_path = os.path.join(out_tac_dir,
-                                        f'{out_tac_prefix}_seg-{regions_abrev[i]}_tac.tsv')
+                                        f'{out_tac_prefix}_seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
         else:
-            out_tac_path = os.path.join(out_tac_dir, f'seg-{regions_abrev[i]}_tac.tsv')
+            out_tac_path = os.path.join(out_tac_dir, f'seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
         region_tac.to_tsv(filename=out_tac_path)
     if verbose:
         print('Finished writing TACs.')
