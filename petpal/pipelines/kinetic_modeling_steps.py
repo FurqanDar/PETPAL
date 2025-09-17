@@ -335,7 +335,7 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         return f'\n    '.join(info_str)
     
     @classmethod
-    def default_patlak(cls):
+    def default_patlak(cls, name: str = 'roi_patlak_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Patlak graphical analysis of ROI TACs in a directory using
         :class:`MultiTACGraphicalAnalysis<petpal.kinetic_modeling.graphical_analysis.MultiTACGraphicalAnalysis>`.
@@ -344,10 +344,13 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             GraphicalAnalysisStep: A new instance for Patlak graphical analysis.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='patlak', )
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='patlak',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
     
     @classmethod
-    def default_logan(cls):
+    def default_logan(cls, name: str = 'roi_logan_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Logan graphical analysis of ROI TACs in a directory using
         :class:`MultiTACGraphicalAnalysis<petpal.kinetic_modeling.graphical_analysis.MultiTACGraphicalAnalysis>`.
@@ -356,10 +359,13 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             GraphicalAnalysisStep: A new instance for Logan graphical analysis.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='logan', )
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='logan',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
     
     @classmethod
-    def default_alt_logan(cls):
+    def default_alt_logan(cls, name: str = 'roi_alt-logan_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Alt-Logan (New Plot) graphical analysis of ROI TACs in a directory using
         :class:`MultiTACGraphicalAnalysis<petpal.kinetic_modeling.graphical_analysis.MultiTACGraphicalAnalysis>`.
@@ -368,7 +374,10 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             GraphicalAnalysisStep: A new instance for Alt-Logan (New Plot) graphical analysis.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='alt_logan', )
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='alt_logan',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
 
 
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
@@ -435,9 +444,9 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         info_str.append(')')
         
         return f'\n    '.join(info_str)
-    
+
     @classmethod
-    def default_1tcm(cls, **kwargs):
+    def default_1tcm(cls, name: str = 'roi_1tcm_fit', **kwargs):
         """
         Creates a default instance for 1TCM compartment model fitting using
         :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
@@ -449,11 +458,14 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             TCMFittingAnalysisStep: A new instance for 1TCM compartment model fitting.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', compartment_model='1tcm',
-                   **kwargs)
-    
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
+                      compartment_model='1tcm',
+                      **kwargs)
+        out_cls.name = name
+        return out_cls
+
     @classmethod
-    def default_serial2tcm(cls, **kwargs):
+    def default_serial2tcm(cls, name: str = 'roi_serial2tcm_fit', **kwargs):
         """
         Creates a default instance for serial-2TCM compartment model fitting using
         :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
@@ -465,11 +477,13 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             TCMFittingAnalysisStep: A new instance for serial-2TCM compartment model fitting.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
-                   compartment_model='serial-2tcm', **kwargs)
-    
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
+                      compartment_model='serial-2tcm', **kwargs)
+        out_cls.name = name
+        return out_cls
+
     @classmethod
-    def default_irreversible_2tcm(cls, **kwargs):
+    def default_irreversible_2tcm(cls, name: str = 'roi_irreversible2tcm_fit', **kwargs):
         """
         Creates a default instance for irreversible-2TCM compartment model fitting using
         :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
@@ -481,8 +495,10 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             TCMFittingAnalysisStep: A new instance for irreversible-2TCM compartment model fitting.
         """
-        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
-                   compartment_model='2tcm-k4zero', **kwargs)
+        out_cls = cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
+                      compartment_model='2tcm-k4zero', **kwargs)
+        out_cls.name = name
+        return out_cls
 
 
 class RTMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
@@ -670,9 +686,9 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                 self.input_tac_path = sending_step.output_tac_path
             else:
                 raise NotImplementedError
-    
+
     @classmethod
-    def default_patlak(cls):
+    def default_patlak(cls, name: str = 'parametric_patlak_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Patlak parametric graphical analysis using
         :class:`GraphicalAnalysisParametricImages<petpal.kinetic_modeling.parametric_images.GraphicalAnalysisParametricImage>`.
@@ -681,10 +697,13 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             ParametricGraphicalAnalysisStep: A new instance for Patlak parametric graphical analysis.
         """
-        return cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='patlak')
-    
+        out_cls = cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='patlak',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
+
     @classmethod
-    def default_logan(cls):
+    def default_logan(cls, name: str = 'parametric_logan_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Logan parametric graphical analysis using
         :class:`GraphicalAnalysisParametricImages<petpal.kinetic_modeling.parametric_images.GraphicalAnalysisParametricImage>`.
@@ -693,10 +712,13 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             ParametricGraphicalAnalysisStep: A new instance for Logan parametric graphical analysis.
         """
-        return cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='logan')
-    
+        out_cls = cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='logan',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
+
     @classmethod
-    def default_alt_logan(cls):
+    def default_alt_logan(cls, name: str = 'parametric_alt-logan_fit', fit_threshold_in_mins: float = 30.0):
         """
         Creates a default instance for Alt-Logan parametric graphical analysis using
         :class:`GraphicalAnalysisParametricImages<petpal.kinetic_modeling.parametric_images.GraphicalAnalysisParametricImage>`.
@@ -705,7 +727,10 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         Returns:
             ParametricGraphicalAnalysisStep: A new instance for Alt-Logan parametric graphical analysis.
         """
-        return cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='alt_logan')
+        out_cls = cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='alt_logan',
+                      fit_threshold_in_mins=fit_threshold_in_mins)
+        out_cls.name = name
+        return out_cls
     
 KMStepType = Union[GraphicalAnalysisStep,
                    TCMFittingAnalysisStep,
