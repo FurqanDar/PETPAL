@@ -79,6 +79,50 @@ class Sgtm:
         self.zeroth_roi = zeroth_roi
         self.sgtm_result = None
 
+    def run(self):
+        r"""Determine whether input image is 3D or 4D and run the correct sGTM method.
+
+        If input image is 3D, implied usage is getting the average sGTM value for each region in
+        the volume. If input image is 4D, implied usage is getting a time series average value for
+        each frame in image within each region.
+        """
+        if self.input_image.dimension == 3:
+            self.sgtm_result = self.run_sgtm_3d()
+
+        elif self.input_image.dimension == 4:
+            self.sgtm_result = self.run_sgtm_4d()
+
+    def save(self, output_path: str, out_tac_prefix: str | None = None):
+        r"""Save sGTM results by writing the resulting array to one or more files.
+
+        The behavior depends on the input iamge provided. If input image is 3D, saves the average sGTM value for each
+        region in a TSV with one row per region. If input image is 4D, saves time series average values for each frame
+        within each region as a TAC file.
+
+        Args:
+            output_path (str): Path to save sGTM results. For 3D images, this should typically be a full path to a
+                .tsv file. For 4D images, this is the directory where the sGTM TACs will be saved.
+            out_tac_prefix (Optional, str): Prefix of the TAC files. Typically, something like
+                ``'sub-001_ses-001_desc-sGTM'``. Defaults to None.
+        """
+        if self.input_image.dimension == 3:
+            self.save_results_3d(sgtm_result=self.sgtm_result, out_tsv_path=output_path)
+        elif self.input_image.dimension == 4:
+            self.save_results_4d_tacs(sgtm_result=self.sgtm_result, out_tac_dir=output_path,
+                                      out_tac_prefix=out_tac_prefix)
+
+    def __call__(self, output_path: str, out_tac_prefix: str | None = None):
+        r"""Run sGTM and save results.
+
+        Applies :meth:`run_sgtm` for 3D images and :meth:`run_sgtm_4d`
+        for 4D images.
+
+        Args:
+            output_path (str): Path to save sGTM results. For 3D images, this is a .tsv file. For
+                4D images, this is a directory.
+        """
+        self.run()
+        self.save(output_path=output_path, out_tac_prefix=out_tac_prefix)
 
     @property
     def sigma(self) -> list[float]:
@@ -319,50 +363,3 @@ class Sgtm:
                                         activity=tac_array[i,:])
             out_tac_path = os.path.join(f'{out_tac_dir}', f'{out_tac_prefix}_seg-{name}_tac.tsv')
             pvc_tac.to_tsv(filename=out_tac_path)
-
-
-    def run(self):
-        r"""Determine whether input image is 3D or 4D and run the correct sGTM method.
-
-        If input image is 3D, implied usage is getting the average sGTM value for each region in
-        the volume. If input image is 4D, implied usage is getting a time series average value for
-        each frame in image within each region.
-        """
-        if self.input_image.dimension==3:
-            self.sgtm_result = self.run_sgtm_3d()
-
-        elif self.input_image.dimension==4:
-            self.sgtm_result = self.run_sgtm_4d()
-
-
-    def save(self, output_path: str, out_tac_prefix: str | None = None):
-        r"""Save sGTM results by writing the resulting array to one or more files.
-
-        The behavior depends on the input iamge provided. If input image is 3D, saves the average sGTM value for each
-        region in a TSV with one row per region. If input image is 4D, saves time series average values for each frame
-        within each region as a TAC file.
-
-        Args:
-            output_path (str): Path to save sGTM results. For 3D images, this should typically be a full path to a
-                .tsv file. For 4D images, this is the directory where the sGTM TACs will be saved.
-            out_tac_prefix (Optional, str): Prefix of the TAC files. Typically, something like
-                ``'sub-001_ses-001_desc-sGTM'``. Defaults to None.
-        """
-        if self.input_image.dimension==3:
-            self.save_results_3d(sgtm_result=self.sgtm_result, out_tsv_path=output_path)
-        elif self.input_image.dimension==4:
-            self.save_results_4d_tacs(sgtm_result=self.sgtm_result, out_tac_dir=output_path, out_tac_prefix=out_tac_prefix)
-
-
-    def __call__(self, output_path: str, out_tac_prefix: str | None = None):
-        r"""Run sGTM and save results.
-        
-        Applies :meth:`run_sgtm` for 3D images and :meth:`run_sgtm_4d`
-        for 4D images.
-
-        Args:
-            output_path (str): Path to save sGTM results. For 3D images, this is a .tsv file. For
-                4D images, this is a directory. 
-        """
-        self.run()
-        self.save(output_path=output_path, out_tac_prefix=out_tac_prefix)
