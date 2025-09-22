@@ -1,6 +1,8 @@
 """
-Module to run partial volume correction on a parametric PET image using the symmetric geometric
-transfer matrix (sGTM) method.
+Module to run partial volume correction PET images using the Symmetric Geometric Transfer Matrix (sGTM) method. The
+output behavior depends on the dimensionality of the input image. If the provided image is 3D, like a parametric SUV
+image, the output will be one table (.tsv) with each unique ROI partial volume corrected per row. If the provided image
+is 4D, the output will be a partial volume corrected TAC for each ROI.
 """
 import os
 import numpy as np
@@ -15,8 +17,7 @@ from ..utils.time_activity_curve import TimeActivityCurve
 from ..preproc.segmentation_tools import unique_segmentation_labels
 
 class Sgtm:
-    """
-    Handle sGTM partial volume correction on parametric images.
+    """Handle sGTM partial volume correction on provided PET images.
     """
     def __init__(self,
                  input_image_path: str,
@@ -24,17 +25,19 @@ class Sgtm:
                  fwhm: float | tuple[float, float, float],
                  segmentation_label_map_path: str | None = None,
                  zeroth_roi: bool = False):
-        """
-        Initialize running sGTM
+        r"""Initialize running sGTM
 
         Args:
             input_image_path (str): Path to input parametric image on which sGTM will be run.
             segmentation_image_path (str): Path to segmentation image to which parametric image is
-                aligned which is used to deliniate regions for PVC.
+                aligned which is used to delineate regions for PVC.
             fwhm (float | tuple[float, float, float]): Full width at half maximum of the Gaussian 
-                blurring kernel for each dimension.
-            zeroth_roi (bool): If False, ignores the zero label in calculations, often used to 
-                exclude background or non-ROI regions.
+                blurring kernel for each dimension in mm. If only one number is provided, it is used for all dimensions.
+            segmentation_label_map_path (Optional, str): Path to segmentation label map table,
+                to be read by :func:`~.read_label_map_tsv`, for segmentation labeling ROIs in the outputs.
+                Defaults to None.
+            zeroth_roi (bool): If False, ignores the zeroth ``0`` label in calculations, often used to
+                exclude background or non-ROI regions. Defaults to False.
 
 
         Example:
@@ -56,15 +59,16 @@ class Sgtm:
                                      zeroth_roi = False)
                 sgtm_analysis(output_path="sub-001_ses-01_pvc-sGTM_desc-SUV_pet.tsv")
 
-                # Do the same with a time series 4D image. This results is a TAC for each region in
+                # Do the same with a time series 4D image. This results in a TAC for each region in
                 # the segmentation file, that has been partial volume corrected with the sGTM
                 # method.
                 input_4d_image_path = "sub-001_ses-01_space-mpr_pet.nii.gz"
                 sgtm_4d_analysis = Sgtm(input_image_path=input_4d_image_path,
                                         segmentation_image_path=segmentation_image_path,
                                         fwhm=fwhm,
+                                        segmentation_label_map_path=segmentation_label_map_path,
                                         zeroth_roi = False)
-                sgtm_4d_analysis(output_path="sub-001_ses-01_pvc-sGTM_tacs")
+                sgtm_4d_analysis(output_path="/path/to/output/directory/", out_tac_prefix='sub-001_ses-001_desc-sGTM')
 
         """
         self.input_image_path = input_image_path
@@ -78,8 +82,7 @@ class Sgtm:
 
     @property
     def sigma(self) -> list[float]:
-        """
-        Blurring kernal sigma for sGTM based on the input FWHM.
+        r"""Blurring kernal sigma for sGTM based on the input FWHM.
 
         Returns:
             sigma (list[float]): List of sigma blurring radii for Gaussian kernel. Each sigma value
@@ -95,12 +98,14 @@ class Sgtm:
 
     @property
     def unique_labels(self) -> tuple[np.ndarray, list[str]]:
-        """
-        Get unique ROIs for sGTM.
+        r"""Get unique ROI indices and corresponding labels. If a segmentation label map was provided at instantiation,
+        the table will be used to determine the unique ROI indices and labels. If a segmentation label map was not
+        provided at instantiation, the segmentation image will be used to determine the unique ROI indices, and labels
+        will be inferred in numerical order of indices.
 
         Returns:
-            unique_segmentation_labels (np.ndarray): Array containing unique integer values found
-                in the discrete segmentation image assigned to object.
+            unique_segmentation_labels (tuple[np.ndarray, list[str]]): Tuple containing the unique ROI indices (mapping)
+                and inferred segmentation labels.
         """
         if self.segmentation_label_map_path is None:
             region_index_map = unique_segmentation_labels(segmentation_img=self.segmentation_image,
@@ -132,8 +137,7 @@ class Sgtm:
     def solve_sgtm(omega: np.ndarray,
                    voxel_by_roi_matrix: np.ndarray,
                    input_numpy: np.ndarray) -> tuple:
-        """
-        Set up and solve linear equation for sGTM.
+        r"""Set up and solve linear equation for sGTM.
 
         Args:
             omega (np.ndarray): The Omega matrix for sGTM. See :meth:`run_sgtm` for details.
@@ -176,8 +180,7 @@ class Sgtm:
 
 
     def run_sgtm_3d(self) -> tuple[np.ndarray, np.ndarray, float]:
-        r"""
-        Apply Symmetric Geometric Transfer Matrix (SGTM) method for Partial Volume Correction 
+        r"""Apply Symmetric Geometric Transfer Matrix (SGTM) method for Partial Volume Correction
         (PVC) to PET images based on ROI labels.
 
         This method involves using a matrix-based approach to adjust the PET signal intensities for
@@ -241,14 +244,14 @@ class Sgtm:
 
 
     def run_sgtm_4d(self) -> np.ndarray:
-        """Calculated partial volume corrected TACs on a 4D image by running sGTM on each frame in
+        r"""Calculated partial volume corrected TACs on a 4D image by running sGTM on each frame in
         the 4D image.
         
         This results in a time series of average activity for each region specified in the
         segmentation image. This can then be used for kinetic modeling.
 
         Returns:
-            frame_results (list[np.ndarray]): Average activity in each region calculated with sGTM
+            frame_results (np.ndarray): Average activity in each region calculated with sGTM
                 for each frame.
         """
         if not check_physical_space_for_ants_image_pair(self.input_image,
@@ -276,14 +279,13 @@ class Sgtm:
 
 
     def save_results_3d(self, sgtm_result: tuple, out_tsv_path: str):
-        """
-        Saves the result of an sGTM calculation.
+        r"""Saves the result of an sGTM calculation.
 
         Result is saved as one value for each of the unique regions found in the segmentation
         image.
 
         Args:
-            sgtm_result (tuple): Output of :meth:`run_sgtm`
+            sgtm_result (tuple): Output of :meth:`run_sgtm_3d`
             out_tsv_path (str): File path to which results are saved.
         """
         sgtm_result_array = np.array([sgtm_result[0], sgtm_result[1]]).T
@@ -297,14 +299,14 @@ class Sgtm:
                              sgtm_result: np.ndarray,
                              out_tac_dir: str,
                              out_tac_prefix: str,):
-        """
-        Saves the result of an sGTM calculation on a 4D PET series.
+        r"""Saves the result of an sGTM calculation on a 4D PET series.
 
         Result is saved as a TAC for each of the unique regions found in the segmentation image.
 
         Args:
             sgtm_result (np.ndarray): Array of results from :meth:`run_sgtm_4d`
             out_tac_dir (str): Path to folder where regional TACs will be saved.
+            out_tac_prefix (str): Prefix of the TAC files.
         """
         os.makedirs(out_tac_dir, exist_ok=True)
         input_image_path = self.input_image_path
@@ -320,8 +322,7 @@ class Sgtm:
 
 
     def run(self):
-        """
-        Determine whether input image is 3D or 4D and run the correct sGTM method.
+        r"""Determine whether input image is 3D or 4D and run the correct sGTM method.
 
         If input image is 3D, implied usage is getting the average sGTM value for each region in
         the volume. If input image is 4D, implied usage is getting a time series average value for
@@ -335,16 +336,17 @@ class Sgtm:
 
 
     def save(self, output_path: str, out_tac_prefix: str | None = None):
-        """
-        Save sGTM results by writing the resulting array to one or more files.
+        r"""Save sGTM results by writing the resulting array to one or more files.
 
-        If input image is 3D, saves the average sGTM value for each region in a TSV with one line
-        per region. If input image is 4D, saves time series average value for each frame within
-        each region as a TAC file.
+        The behavior depends on the input iamge provided. If input image is 3D, saves the average sGTM value for each
+        region in a TSV with one row per region. If input image is 4D, saves time series average values for each frame
+        within each region as a TAC file.
 
         Args:
-            output (str): Path to save sGTM results. For 3D images, this is a .tsv file. For
-                4D images, this is a directory. 
+            output_path (str): Path to save sGTM results. For 3D images, this should typically be a full path to a
+                .tsv file. For 4D images, this is the directory where the sGTM TACs will be saved.
+            out_tac_prefix (Optional, str): Prefix of the TAC files. Typically, something like
+                ``'sub-001_ses-001_desc-sGTM'``. Defaults to None.
         """
         if self.input_image.dimension==3:
             self.save_results_3d(sgtm_result=self.sgtm_result, out_tsv_path=output_path)
@@ -353,8 +355,7 @@ class Sgtm:
 
 
     def __call__(self, output_path: str, out_tac_prefix: str | None = None):
-        """
-        Run sGTM and save results.
+        r"""Run sGTM and save results.
         
         Applies :meth:`run_sgtm` for 3D images and :meth:`run_sgtm_4d`
         for 4D images.
