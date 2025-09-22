@@ -56,7 +56,7 @@ class Sgtm:
                                      zeroth_roi = False)
                 sgtm_analysis(output_path="sub-001_ses-01_pvc-sGTM_desc-SUV_pet.tsv")
 
-                # Do the same with a time series 4D image. This results in a TAC for each region in
+                # Do the same with a time series 4D image. This results is a TAC for each region in
                 # the segmentation file, that has been partial volume corrected with the sGTM
                 # method.
                 input_4d_image_path = "sub-001_ses-01_space-mpr_pet.nii.gz"
@@ -152,9 +152,8 @@ class Sgtm:
     def get_voxel_by_roi_matrix(unique_labels: np.ndarray,
                                 segmentation_arr: np.ndarray,
                                 sigma: list[float]) -> np.ndarray:
-        """
-        Get the ``V`` matrix for sGTM by blurring each ROI and converting into vectors. See
-        :meth:`run_sgtm` for more details.
+        r"""Get the ``V`` matrix for sGTM by blurring each ROI and converting into vectors.
+        See :meth:`run_sgtm` for more details.
 
         Args:
             unique_labels (np.ndarray): Array containing unique values in the discrete segmentation

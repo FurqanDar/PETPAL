@@ -172,9 +172,8 @@ class FitTACWithRTMs:
     The fitting result contains the estimated kinetic parameters depending on the chosen model.
 
     Attributes:
-        tac_times_in_minutes (np.ndarray): The array representing the time-points for both TACs.
-        target_tac_vals (np.ndarray): The target TAC values.
-        reference_tac_vals (np.ndarray): The reference TAC values.
+        target_tac (TimeActivityCurve): The target TAC object.
+        reference_tac (TimeActivityCurve): The reference TAC object.
         method (str): Optional. The kinetic model to use. Defaults to 'mrtm'.
         bounds (np.ndarray): Optional. Parameter bounds for the specified kinetic model. Defaults
             to None.
@@ -204,35 +203,36 @@ class FitTACWithRTMs:
 
             # Loading the input tac to generate a reference region tac
             input_tac = TimeActivityCurve.from_tsv("../../../../../data/tcm_tacs/fdg_plasma_clamp_evenly_resampled.txt")
-            input_tac_resampled = input_tac.evenly_resampled_tac(8096)
+            input_tac_resampled = input_tac.evenly_resampled_tac(8192)
 
             # Generating a reference region tac
             tac_times_in_minutes, ref_tac_vals = pet_tcm.gen_tac_1tcm_cpet_from_tac(tac_times=input_tac_resampled.times,
                                                                                     tac_vals=input_tac_resampled.activity,
                                                                                     k1=0.25, k2=0.2)
+            reference_tac = TimeActivityCurve(tac_times_in_minutes, ref_tac_vals)
             test_params = dict(r1=1.0, k2=0.25, bp=3.0)
             # Generating an SRTM tac
             srtm_tac_vals = pet_rtms.calc_srtm_tac(tac_times_in_minutes=tac_times_in_minutes, ref_tac_vals=ref_tac_vals, **test_params)
+            srtm_tac = TimeActivityCurve(tac_times_in_minutes, srtm_tac_vals)
 
 
-
-
-
-            rtm_analysis = fit_rtms.FitTACWithRTMs(target_tac_vals=srtm_tac_vals,
-                                                   tac_times_in_minutes=tac_times_in_minutes,
-                                                   reference_tac_vals=ref_tac_vals,
+            rtm_analysis = fit_rtms.FitTACWithRTMs(target_tac=srtm_tac,
+                                                   reference_tac=reference_tac,
                                                    method='srtm')
 
-            # Performing the fit
+            # Performing the fit and saving the results
             rtm_analysis.fit_tac_to_model()
             fit_results = rtm_analysis.fit_results[0]
             fit_results_dict = dict(r1=fit_results[0], k2=fit_results[1], bp=fit_results[2])
 
             assert np.allclose(fit_results, list(test_params.values()))
 
+            # Generating the SRTM TAC from the fit results
             fit_srtm_tac_vals = pet_rtms.calc_srtm_tac(tac_times_in_minutes=tac_times_in_minutes,
                                                        ref_tac_vals=ref_tac_vals, **fit_results_dict)
 
+
+            # Plotting the results
             tac_plt = TACPlots(ylabel=r'TAC $(\mathrm{nCi/ml})$')
             tac_plt.add_tac(*input_tac.tac, label='PTAC', alpha=0.6, ls='--')
             tac_plt.add_tac(tac_times_in_minutes, ref_tac_vals, label='Ref TAC', alpha=0.6, ls='--')

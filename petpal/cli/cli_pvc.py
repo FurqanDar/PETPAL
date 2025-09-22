@@ -1,24 +1,18 @@
 """
-Command-line interface (CLI) for Partial Volume Correction (PVC) using SGTM and PETPVC methods.
-This module provides a CLI to apply PVC to PET images using either the SGTM method or the PETPVC package.
-It uses argparse to handle command-line arguments and chooses the appropriate method based on the provided input.
+Command-line interface (CLI) for Partial Volume Correction (PVC) using the Symmetric Geometric Transfer Matrix (sGTM)
+method. It uses argparse to handle command-line arguments and chooses the appropriate method based on the provided input.
 The user must provide:
     * PET image file path
     * Segmentation image file path
     * FWHM for Gaussian blurring
-    * PVC method ('SGTM' or any other method for PETPVC)
-    * Additional options for PETPVC
+    * (Optional) Segmentation label map table path.
 Example usage:
     Using SGTM method:
         .. code-block:: bash
-            pvc_cli.py --method SGTM --pet-path /path/to/pet_image.nii --roi-path /path/to/roi_image.nii --fwhm (8.0, 7.0, 7.0)
-    Using PETPVC method:
-        .. code-block:: bash
-            pvc_cli.py --method RBV --pet-path /path/to/pet_image.nii --roi-path /path/to/roi_image.nii --fwhm 6.0 --output-path /path/to/output_image.nii
+            pet-cli-pvc --method SGTM --pet-path /path/to/pet_image.nii --roi-path /path/to/roi_image.nii --fwhm (8.0, 7.0, 7.0)
 See Also:
     SGTM and PETPVC methods implementation modules.
-    :mod:`SGTM <pet_cli.symmetric_geometric_transfer_matrix>` - module for performing symmetric Geometric Transfer Matrix PVC.
-    :mod:`PETPVC <pet_cli.partial_volume_corrections>` - wrapper for PETPVC package.
+    :mod:`SGTM <pet_cli.symmetric_geometric_transfer_matrix>` - module for performing Symmetric Geometric Transfer Matrix PVC.
 """
 import argparse
 
@@ -29,12 +23,14 @@ from ..preproc.symmetric_geometric_transfer_matrix import Sgtm
 def sgtm_cli_run(input_image_path: str,
                  segmentation_image_path: str,
                  fwhm: float | tuple[float, float, float],
-                 output_path: str):
+                 output_path: str,
+                 segmentation_label_map_path: str | None = None,):
     """
     Apply the SGTM method for Partial Volume Correction.
     """
     sgtm_obj = Sgtm(input_image_path=input_image_path,
                     segmentation_image_path=segmentation_image_path,
+                    segmentation_label_map_path=segmentation_label_map_path,
                     fwhm=fwhm)
     sub_id, ses_id = parse_path_to_get_subject_and_session_id(path=input_image_path)
     sgtm_obj(output_path=output_path, out_tac_prefix=f'sub-{sub_id}_ses-{ses_id}')
@@ -65,6 +61,10 @@ def main():
                         type=float,
                         help="Full Width at Half Maximum for Gaussian blurring (Tuple or single "
                              "float) in mm.")
+    parser.add_argument("-t",
+                        "--segmentation_label_map",
+                        required=False, default=None,
+                        help="Path to the table of segmentation labels map.")
     parser.add_argument("-o",
                         "--output",
                         required=True,
@@ -76,7 +76,8 @@ def main():
     sgtm_cli_run(input_image_path=args.input_image,
                  segmentation_image_path=args.segmentation_image,
                  fwhm=args.fwhm,
-                 output_path=args.output)
+                 output_path=args.output,
+                 segmentation_label_map_path=args.segmentation_label_map)
 
 if __name__ == "__main__":
     main()
