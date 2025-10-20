@@ -92,6 +92,8 @@ intersphinx_mapping = {
 def skip_main_funcs(app, what, name, obj, skip, options):
     if "main" in name and what == "function":
        skip = True
+    elif what=="attribute":
+       skip = True
     return skip
 
 def setup(sphinx):
