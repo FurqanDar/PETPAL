@@ -36,3 +36,21 @@ class RegionalStats:
         region_arr_nonzero = region_arr.nonzero()
         voxel_arr = region_arr[region_arr_nonzero]
         return voxel_arr
+
+    @property
+    def get_stats(self) -> dict:
+        """Get stats for all regions. Applies the `stats_func` set in the `__init__`
+        to the `voxel_arr` to return a single value for each region.
+        
+        Args:
+            voxel_arr (np.ndarray): Voxel values in the region of interest.
+        
+        Returns:
+            region_stat (float): The statistic for the region of interest.
+        """
+        region_stats = {}
+        for label in self.label_map:
+            voxel_arr = self.get_voxels(label=label)
+            region_stat = self.stats_func(voxel_arr)
+            region_stats[label] = region_stat
+        return region_stats
