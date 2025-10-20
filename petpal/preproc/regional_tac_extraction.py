@@ -1,7 +1,6 @@
 """
 Regional TAC extraction
 """
-import re
 import os
 from collections.abc import Callable
 import pathlib
@@ -9,14 +8,12 @@ import numpy as np
 import ants
 import pandas as pd
 
-from .segmentation_tools import combine_regions_as_mask, unique_segmentation_labels
+from .segmentation_tools import combine_regions_as_mask
 from ..utils import image_io
 from ..utils.scan_timing import ScanTimingInfo
-from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      str_to_camel_case,
-                                      capitalize_first_char_of_str)
+from ..utils.useful_functions import check_physical_space_for_ants_image_pair
 from ..utils.time_activity_curve import TimeActivityCurve
-
+from ..meta.label_maps import LabelMapLoader
 
 def extract_roi_voxel_tacs_from_image_using_mask(input_image: ants.core.ANTsImage,
                                                  mask_image: ants.core.ANTsImage,
@@ -292,7 +289,7 @@ class WriteRegionalTacs:
     def __init__(self,
                  input_image_path: str | pathlib.Path,
                  segmentation_path: str | pathlib.Path,
-                 label_map_path: str | pathlib.Path,
+                 label_map: str | pathlib.Path,
                  tac_extraction_func: Callable=voxel_average_w_uncertainty):
         """Initialize WriteRegionalTacs.
         
@@ -311,9 +308,9 @@ class WriteRegionalTacs:
         self.tac_extraction_func = tac_extraction_func
         self.scan_timing = ScanTimingInfo.from_nifti(input_image_path)
 
-        label_map = image_io.read_label_map_tsv(label_map_file=label_map_path)
-        self.region_names = [str_to_camel_case(label) for label in label_map['abbreviation']]
-        self.region_maps = label_map['mapping'].to_list()
+        label_map_dict = LabelMapLoader(label_map_option=label_map).label_map
+        self.region_names = list(label_map_dict.keys())
+        self.region_maps = list(label_map_dict.values())
 
     def set_tac_extraction_func(self, tac_extraction_func: Callable):
         """Sets the tac extraction function used to a different function.
@@ -394,11 +391,9 @@ class WriteRegionalTacs:
         tacs_data['frame_start(min)'] = self.scan_timing.start_in_mins
         tacs_data['frame_end(min)'] = self.scan_timing.end_in_mins
 
-        unique_labels = unique_segmentation_labels(self.seg_arr)
-
-        for label in unique_labels:
-            tac = self.extract_tac(label, **tac_calc_kwargs)
-            region_name = self.find_label_name(label=label)
+        for i,region_name in enumerate(self.region_names):
+            mappings = self.region_maps[i]
+            tac = self.extract_tac(region_mapping=mappings, **tac_calc_kwargs)
             if one_tsv_per_region:
                 tac.to_tsv(filename=f'{out_tac_dir}/{out_tac_prefix}_seg-{region_name}_tac.tsv')
             else:

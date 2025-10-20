@@ -1,0 +1,217 @@
+{
+    "Unknown": 0,
+    "CerebralWhiteMatter": [
+        2,
+        41
+    ],
+    "LateralVentricle": [
+        4,
+        43
+    ],
+    "InfLatVent": [
+        5,
+        44
+    ],
+    "CerebellumWhiteMatter": [
+        7,
+        46
+    ],
+    "CerebellumCortex": [
+        8,
+        47
+    ],
+    "Thalamus": [
+        10,
+        49
+    ],
+    "Caudate": [
+        11,
+        50
+    ],
+    "Putamen": [
+        12,
+        51
+    ],
+    "Pallidum": [
+        13,
+        52
+    ],
+    "3rdVentricle": 14,
+    "4thVentricle": 15,
+    "BrainStem": 16,
+    "Hippocampus": [
+        17,
+        53
+    ],
+    "Amygdala": [
+        18,
+        54
+    ],
+    "CSF": 24,
+    "AccumbensArea": [
+        26,
+        58
+    ],
+    "VentralDC": [
+        28,
+        60
+    ],
+    "Vessel": [
+        30,
+        62
+    ],
+    "ChoroidPlexus": [
+        31,
+        63
+    ],
+    "OpticChiasm": 85,
+    "AirCavity": 130,
+    "Skull": 165,
+    "Vermis": 172,
+    "Midbrain": 173,
+    "Pons": 174,
+    "Medulla": 175,
+    "CCPosterior": 251,
+    "CCMidPosterior": 252,
+    "CCCentral": 253,
+    "CCMidAnterior": 254,
+    "CCAnterior": 255,
+    "CSFExtraCerebral": 257,
+    "HeadExtraCerebral": 258,
+    "CtxBankssts": [
+        1001,
+        2001
+    ],
+    "CtxCaudalanteriorcingulate": [
+        1002,
+        2002
+    ],
+    "CtxCaudalmiddlefrontal": [
+        1003,
+        2003
+    ],
+    "CtxCuneus": [
+        1005,
+        2005
+    ],
+    "CtxEntorhinal": [
+        1006,
+        2006
+    ],
+    "CtxFusiform": [
+        1007,
+        2007
+    ],
+    "CtxInferiorparietal": [
+        1008,
+        2008
+    ],
+    "CtxInferiortemporal": [
+        1009,
+        2009
+    ],
+    "CtxIsthmuscingulate": [
+        1010,
+        2010
+    ],
+    "CtxLateraloccipital": [
+        1011,
+        2011
+    ],
+    "CtxLateralorbitofrontal": [
+        1012,
+        2012
+    ],
+    "CtxLingual": [
+        1013,
+        2013
+    ],
+    "CtxMedialorbitofrontal": [
+        1014,
+        2014
+    ],
+    "CtxMiddletemporal": [
+        1015,
+        2015
+    ],
+    "CtxParahippocampal": [
+        1016,
+        2016
+    ],
+    "CtxParacentral": [
+        1017,
+        2017
+    ],
+    "CtxParsopercularis": [
+        1018,
+        2018
+    ],
+    "CtxParsorbitalis": [
+        1019,
+        2019
+    ],
+    "CtxParstriangularis": [
+        1020,
+        2020
+    ],
+    "CtxPericalcarine": [
+        1021,
+        2021
+    ],
+    "CtxPostcentral": [
+        1022,
+        2022
+    ],
+    "CtxPosteriorcingulate": [
+        1023,
+        2023
+    ],
+    "CtxPrecentral": [
+        1024,
+        2024
+    ],
+    "CtxPrecuneus": [
+        1025,
+        2025
+    ],
+    "CtxRostralanteriorcingulate": [
+        1026,
+        2026
+    ],
+    "CtxRostralmiddlefrontal": [
+        1027,
+        2027
+    ],
+    "CtxSuperiorfrontal": [
+        1028,
+        2028
+    ],
+    "CtxSuperiorparietal": [
+        1029,
+        2029
+    ],
+    "CtxSuperiortemporal": [
+        1030,
+        2030
+    ],
+    "CtxSupramarginal": [
+        1031,
+        2031
+    ],
+    "CtxFrontalpole": [
+        1032,
+        2032
+    ],
+    "CtxTemporalpole": [
+        1033,
+        2033
+    ],
+    "CtxTransversetemporal": [
+        1034,
+        2034
+    ],
+    "CtxInsula": [
+        1035,
+        2035
+    ]
+}
