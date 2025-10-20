@@ -21,3 +21,18 @@ class RegionalStats:
         self.seg_img = ants.image_read(segmentation_image_path)
         self.stats_func = stats_func
         self.label_map = LabelMapLoader(label_map_option=label_map_option).label_map
+
+    def get_voxels(self, label: str) -> np.ndarray:
+        """Get the voxel array for the selected label.
+        
+        Args:
+            label (str): Name of the region from which to extract voxels.
+            
+        Returns:
+            voxel_arr (np.ndarray): Voxels in region as a flattened array."""
+        mappings = self.label_map[label]
+        region_mask = ants.mask_image(self.pet_img, self.seg_img, level=mappings)
+        region_arr = region_mask.numpy().flatten()
+        region_arr_nonzero = region_arr.nonzero()
+        voxel_arr = region_arr[region_arr_nonzero]
+        return voxel_arr
