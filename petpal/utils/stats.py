@@ -8,9 +8,33 @@ from petpal.meta.label_maps import LabelMapLoader
 class RegionalStats:
     """Run statistics on each region in a parametric 3D PET kinetic model or other image.
     
+    Example:
+
+        .. code-block:: python
+
+            import numpy as np
+            from petpal.utils.stats import RegionalStats
+            from petpal.utils.image_io import write_dict_to_json
+
+            # Set up class
+            input_image_path = 'sub-001_ses-01_space-mpr_desc-SUVR_pet.nii.gz'
+            segmentation_image_path = 'sub-001_ses-01_seg.nii.gz'
+            region_stats_obj = RegionalStats(input_image_path = input_image_path,
+                                             segmentation_image_path = segmentation_image_path,
+                                             label_map_option = 'freesurfer')
+            
+            # Preset statistic: get mean in each region
+            region_means = region_stats_obj.mean
+            write_dict_to_json(region_means,'sub-001_ses-01_RegionMeanSUVR.json')
+
+            # Create function to get statistic for each region
+            def calc_95th_percentile(arr: np.ndarray):
+                return np.percentile(arr,95)
+            region_95th = region_stats_obj.get_stats(calc_95th_percentile)
+            write_dict_to_json(region_95th,'sub-001_ses-01_Region95thPercentileSUVR.json')
+
     :ivar pet_img: 3D PET image on which to get statistics for each region.
     :ivar seg_img: Segmentation image in same space as `pet_img` defining regions.
-    :ivar stats_func: Callable function applied to voxels in PET image in each region.
     :ivar label_map: Dictionary that assigns labels to regions in `seg_img`."""
     def __init__(self,
                  input_image_path: str,
