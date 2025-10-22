@@ -69,7 +69,7 @@ class RegionalStats:
         voxel_arr = region_arr[region_arr_nonzero]
         return voxel_arr
 
-    def get_stats(self, stats_func: Callable) -> dict:
+    def get_stats(self, stats_func: Callable, dtype=float) -> dict:
         """Get stats for all regions. Applies the `stats_func` set in the `__init__`
         to the `voxel_arr` to return a single value for each region.
         
@@ -83,7 +83,7 @@ class RegionalStats:
         for label in self.label_map:
             voxel_arr = self.get_voxels(label=label)
             region_stat = stats_func(voxel_arr)
-            region_stats[label] = region_stat
+            region_stats[label] = dtype(region_stat)
         return region_stats
 
     @property
@@ -99,7 +99,7 @@ class RegionalStats:
     @property
     def nvox(self) -> dict:
         """Get number of voxels in each region."""
-        return self.get_stats(stats_func=len)
+        return self.get_stats(stats_func=len, dtype=int)
 
     @property
     def max(self) -> dict:
