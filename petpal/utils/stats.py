@@ -3,7 +3,7 @@ from collections.abc import Callable
 import numpy as np
 import ants
 
-from petpal.meta.label_maps import LabelMapLoader
+from ..meta.label_maps import LabelMapLoader
 
 class RegionalStats:
     """Run statistics on each region in a parametric 3D PET kinetic model or other image.
