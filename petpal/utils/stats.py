@@ -8,6 +8,13 @@ from petpal.meta.label_maps import LabelMapLoader
 class RegionalStats:
     """Run statistics on each region in a parametric 3D PET kinetic model or other image.
     
+    Options:
+        RegionalStats.mean: Mean value within each region
+        RegionalStats.std: Standard devation of values within each region.
+        RegionalStats.nvox: Number of voxels in each region.
+        RegionalStats.get_stats(stats_func): Get a generic statistic run on each region. Runs
+          function `stats_func` on each region, which must take a 1D array as the only argument.
+
     Example:
 
         .. code-block:: python
@@ -27,7 +34,7 @@ class RegionalStats:
             region_means = region_stats_obj.mean
             write_dict_to_json(region_means,'sub-001_ses-01_RegionMeanSUVR.json')
 
-            # Create function to get statistic for each region
+            # Create function to get 95th percentile value for each region
             def calc_95th_percentile(arr: np.ndarray):
                 return np.percentile(arr,95)
             region_95th = region_stats_obj.get_stats(calc_95th_percentile)
