@@ -15,11 +15,9 @@ class RegionalStats:
     def __init__(self,
                  input_image_path: str,
                  segmentation_image_path: str,
-                 label_map_option: str | dict,
-                 stats_func: Callable=np.mean):
+                 label_map_option: str | dict):
         self.pet_img = ants.image_read(input_image_path)
         self.seg_img = ants.image_read(segmentation_image_path)
-        self.stats_func = stats_func
         self.label_map = LabelMapLoader(label_map_option=label_map_option).label_map
 
     def get_voxels(self, label: str) -> np.ndarray:
@@ -37,8 +35,7 @@ class RegionalStats:
         voxel_arr = region_arr[region_arr_nonzero]
         return voxel_arr
 
-    @property
-    def get_stats(self) -> dict:
+    def get_stats(self, stats_func: Callable) -> dict:
         """Get stats for all regions. Applies the `stats_func` set in the `__init__`
         to the `voxel_arr` to return a single value for each region.
         
@@ -51,6 +48,6 @@ class RegionalStats:
         region_stats = {}
         for label in self.label_map:
             voxel_arr = self.get_voxels(label=label)
-            region_stat = self.stats_func(voxel_arr)
+            region_stat = stats_func(voxel_arr)
             region_stats[label] = region_stat
         return region_stats
