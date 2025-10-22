@@ -51,3 +51,8 @@ class RegionalStats:
             region_stat = stats_func(voxel_arr)
             region_stats[label] = region_stat
         return region_stats
+
+    @property
+    def mean(self) -> dict:
+        """Get mean value for each region."""
+        return self.get_stats(stats_func=np.mean)
