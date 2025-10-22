@@ -97,3 +97,8 @@ class RegionalStats:
     def nvox(self) -> dict:
         """Get number of voxels in each region."""
         return self.get_stats(stats_func=len)
+
+    @property
+    def max(self) -> dict:
+        """Get maximum value in each region."""
+        return self.get_stats(stats_func=np.max)
