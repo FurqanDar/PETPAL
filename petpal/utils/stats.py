@@ -56,3 +56,13 @@ class RegionalStats:
     def mean(self) -> dict:
         """Get mean value for each region."""
         return self.get_stats(stats_func=np.mean)
+
+    @property
+    def std(self) -> dict:
+        """Get standard deviation of values for each region."""
+        return self.get_stats(stats_func=np.std)
+
+    @property
+    def nvox(self) -> dict:
+        """Get number of voxels in each region."""
+        return self.get_stats(stats_func=len)
