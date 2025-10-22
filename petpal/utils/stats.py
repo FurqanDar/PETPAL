@@ -12,6 +12,9 @@ class RegionalStats:
         RegionalStats.mean: Mean value within each region
         RegionalStats.std: Standard devation of values within each region.
         RegionalStats.nvox: Number of voxels in each region.
+        RegionalStats.max: Maximum value in each region.
+        RegionalStats.min: Minimum value in each region.
+        RegionalStats.median: Median value in each region.
         RegionalStats.get_stats(stats_func): Get a generic statistic run on each region. Runs
           function `stats_func` on each region, which must take a 1D array as the only argument.
 
@@ -102,3 +105,13 @@ class RegionalStats:
     def max(self) -> dict:
         """Get maximum value in each region."""
         return self.get_stats(stats_func=np.max)
+
+    @property
+    def min(self) -> dict:
+        """Get minimum value in each region."""
+        return self.get_stats(stats_func=np.min)
+
+    @property
+    def median(self) -> dict:
+        """Get median value in each region."""
+        return self.get_stats(stats_func=np.median)
