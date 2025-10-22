@@ -5,8 +5,8 @@ This module contains label maps for use in running PETPAL.
 from collections.abc import MutableSequence, Callable
 import pathlib
 from numbers import Integral
-from petpal.utils.image_io import safe_load_meta
-from petpal.utils.useful_functions import str_to_camel_case
+from ..utils.image_io import safe_load_meta
+from ..utils.useful_functions import str_to_camel_case
 
 label_map_freesurfer = {
     'Unknown': 0,
