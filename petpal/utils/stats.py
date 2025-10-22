@@ -10,13 +10,13 @@ class RegionalStats:
     """Run statistics on each region in a parametric 3D PET kinetic model or other image.
     
     Options:
-        RegionalStats.mean: Mean value within each region
-        RegionalStats.std: Standard devation of values within each region.
-        RegionalStats.nvox: Number of voxels in each region.
-        RegionalStats.max: Maximum value in each region.
-        RegionalStats.min: Minimum value in each region.
-        RegionalStats.median: Median value in each region.
-        RegionalStats.get_stats(stats_func): Get a generic statistic run on each region. Runs
+        * RegionalStats.mean: Mean value within each region
+        * RegionalStats.std: Standard devation of values within each region.
+        * RegionalStats.nvox: Number of voxels in each region.
+        * RegionalStats.max: Maximum value in each region.
+        * RegionalStats.min: Minimum value in each region.
+        * RegionalStats.median: Median value in each region.
+        * RegionalStats.get_stats(stats_func): Get a generic statistic run on each region. Runs
           function `stats_func` on each region, which must take a 1D array as the only argument.
 
     Example:
