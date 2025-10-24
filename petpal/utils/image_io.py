@@ -365,7 +365,7 @@ def read_label_map_tsv(label_map_file: str) -> dict | pd.DataFrame:
     if not os.path.exists(label_map_file):
         raise FileNotFoundError(f"Image file {label_map_file} not found")
 
-    label_map = pd.read_csv(label_map_file,sep='\t')
+    label_map = pd.read_csv(label_map_file, sep='\t')
 
     return label_map
 

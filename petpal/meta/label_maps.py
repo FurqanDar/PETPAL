@@ -7,6 +7,7 @@ import pathlib
 from numbers import Integral
 from ..utils.image_io import safe_load_meta
 from ..utils.useful_functions import str_to_camel_case
+from ..utils.image_io import read_label_map_tsv
 
 label_map_freesurfer = {
     'Unknown': 0,
@@ -578,6 +579,23 @@ class LabelMapLoader:
             label_map (dict): The label map loaded from file."""
         return safe_load_meta(input_metadata_file=label_map_path)
 
+    def from_dseg_tsv(self, label_map_path: str) -> dict:
+        r"""
+        Load a label map from a .tsv file.
+
+        Args:
+            label_map_path (str): Path to the label map for use in the PET study.
+
+        Returns:
+            label_map (dict): The label map loaded from file.
+        """
+        label_map_df = read_label_map_tsv(label_map_file=label_map_path)
+        out_map_dict = {str_to_camel_case(seg): val for seg, val in
+                        zip(label_map_df['abbreviation'], label_map_df['mapping'])}
+
+        return {"Unknown": 0} | out_map_dict
+
+
     def detect_option(self, label_map_option: dict | str) -> Callable:
         """Determine the label map loading method to use based on the provided option.
         
@@ -590,7 +608,10 @@ class LabelMapLoader:
         if isinstance(label_map_option, str):
             label_map_path = pathlib.Path(label_map_option)
             if label_map_path.exists():
-                return self.from_json
+                if label_map_path.suffix == '.json':
+                    return self.from_json
+                elif label_map_path.suffix == '.tsv':
+                    return self.from_dseg_tsv
             if label_map_path.suffix!='':
                 raise FileNotFoundError(f'Label map option {label_map_option} looks like a path'
                                         'yet does not exist.')
