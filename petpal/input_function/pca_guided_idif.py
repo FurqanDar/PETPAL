@@ -415,13 +415,14 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
                                                  num_pcs: int = 3,
                                                  frame_window: int = 1):
         assert frame_window >= 1, "`frame_window` must be greater than 1."
-        assert self.mask_peak_arg + frame_window < len(
-            self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
-        assert self.mask_peak_arg - frame_window >= 0, "`frame_window` is too big on the left boundary."
+        right_bound = self.mask_peak_arg + frame_window + 1
+        left_bound = self.mask_peak_arg - frame_window
+        assert right_bound <= len(self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
+        assert left_bound >= 0, "`frame_window` is too big on the left boundary."
+
         _pc_comps_peak_args = np.zeros(num_pcs, int)
         for compID, a_comp in enumerate(self.pca_obj.components_[:num_pcs]):
-            _pc_comps_peak_args[compID] = np.argmax(
-                    a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1])
+            _pc_comps_peak_args[compID] = np.argmax(a_comp[left_bound:right_bound])
         return np.argmin(_pc_comps_peak_args)
 
     @staticmethod
