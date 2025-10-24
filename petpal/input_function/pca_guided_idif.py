@@ -134,8 +134,6 @@ class PCAGuidedIdifBase(object):
         self.mask_voxel_tacs = extract_masked_voxels(input_image=ants.image_read(self.image_path),
                                                      mask_image=ants.image_read(self.mask_path),
                                                      verbose=self.verbose)
-        self.mask_indecies = np.asarray(ants.image_read(self.mask_path).nonzero())
-        self.selected_voxels_image_mask_indecies: np.ndarray | None = None
 
         self.mask_avg = np.mean(self.mask_voxel_tacs, axis=0)
         self.mask_std = np.std(self.mask_voxel_tacs, axis=0)
@@ -271,7 +269,6 @@ class PCAGuidedIdifBase(object):
          """
         assert self.analysis_has_run, "The .run() has not been called yet."
         self.selected_voxels_tacs = self.mask_voxel_tacs[self.selected_voxels_mask]
-        self.selected_voxels_image_mask_indecies = self.mask_indecies[:, self.selected_voxels_mask]
         self.idif_vals = np.mean(self.selected_voxels_tacs, axis=0)
         self.idif_errs = np.std(self.selected_voxels_tacs, axis=0)
         self.selected_voxels_tacs = self.pca_obj.inverse_transform(self.pca_fit[self.selected_voxels_mask])
@@ -411,19 +408,6 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
         self.num_of_voxels: int | None = None
         self.selected_component: int | None = None
 
-    def get_pca_obj_earliest_pc_around_mask_peak(self,
-                                                 num_pcs: int = 3,
-                                                 frame_window: int = 1):
-        assert frame_window >= 1, "`frame_window` must be greater than 1."
-        assert self.mask_peak_arg + frame_window < len(
-            self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
-        assert self.mask_peak_arg - frame_window >= 0, "`frame_window` is too big on the left boundary."
-        _pc_comps_peak_args = np.zeros(num_pcs, int)
-        for compID, a_comp in enumerate(self.pca_obj.components_[:num_pcs]):
-            _pc_comps_peak_args[compID] = np.argmax(
-                    a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1])
-        return np.argmin(_pc_comps_peak_args)
-
     @staticmethod
     def calculate_top_pc_voxels_mask(pca_obj: PCA,
                                      pca_fit: np.ndarray,
@@ -453,9 +437,7 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
         pc_comp_argsort = np.argsort(pca_fit[:, pca_component])[::-1]
         return pc_comp_argsort[:number_of_voxels]
 
-    def run(self,
-            selected_component: int | str = 'auto',
-            num_of_voxels: int = 50) -> None:
+    def run(self, selected_component: int, num_of_voxels: int) -> None:
         """Executes the PCA-guided IDIF analysis by selecting voxels and calculating TACs.
 
         Args:
@@ -478,10 +460,7 @@ class PCAGuidedTopVoxelsIDIF(PCAGuidedIdifBase):
             the necessary state attributes.
         """
         assert num_of_voxels > 2, "num_of_voxels must be greater than 2."
-        if selected_component == 'auto':
-            self.selected_component = self.get_pca_obj_earliest_pc_around_mask_peak()
-        else:
-            self.selected_component = selected_component
+        self.selected_component = selected_component
         self.num_of_voxels = num_of_voxels
         self.selected_voxels_mask = self.calculate_top_pc_voxels_mask(pca_obj=self.pca_obj,
                                                                       pca_fit=self.pca_fit,
@@ -572,7 +551,6 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
         self.calculate_filter_flags_and_signs(comp_min_val=self.pca_comp_filter_min_val,
                                               threshold=self.pca_comp_filter_flag_threshold)
         self._fitting_params = self._generate_quantile_params(num_components=self.num_components)
-        self.update_pca_obj_peak_arg_and_val_using_pc_vectors()
 
     @property
     def pca_comp_filter_flag_threshold(self) -> float:
@@ -739,18 +717,6 @@ class PCAGuidedIdifFitterBase(PCAGuidedIdifBase):
                                                                     comp_min_val=comp_min_val,
                                                                     threshold=threshold)
         self.filter_signs = self.get_pca_filter_signs_from_flags(pca_component_filter_flags=self.pca_filter_flags)
-
-    def update_pca_obj_peak_arg_and_val_using_pc_vectors(self, num_pcs: int = 3, frame_window: int = 1):
-        assert frame_window >= 1, "`frame_window` must be greater than 1."
-        assert self.mask_peak_arg + frame_window < len(self.tac_times_in_mins), "`frame_window` is too big on the right boundary."
-        assert self.mask_peak_arg - frame_window >= 0, "`frame_window` is too big on the left boundary."
-        _pc_comps_peak_args = []
-        for a_comp in self.pca_obj.components_[:num_pcs]:
-            _pc_comps_peak_args.append(np.argmax(a_comp[self.mask_peak_arg - frame_window:self.mask_peak_arg + frame_window + 1]))
-        new_peak_arg = np.min(_pc_comps_peak_args)
-        new_peak_arg -= frame_window
-        self.mask_peak_arg += new_peak_arg
-        self.mask_peak_val = self.mask_avg[self.mask_peak_arg] + 3. * self.mask_std[self.mask_peak_arg]
 
     def residual(self,
                  params: lmfit.Parameters,

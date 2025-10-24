@@ -376,7 +376,7 @@ class PCAGuidedTopVoxelsIDIFStep(ObjectBasedStep, PCAGuidedIDIFMixin):
                  output_array_path: str,
                  num_pca_components: int,
                  verbose: bool,
-                 selected_component: int | str,
+                 selected_component: int,
                  num_of_voxels: int):
         r"""Initializes the PCA-guided top voxels IDIF pipeline step.
 
@@ -461,7 +461,7 @@ class PCAGuidedTopVoxelsIDIFStep(ObjectBasedStep, PCAGuidedIDIFMixin):
                         output_array_path = '',
                         num_pca_components = 3,
                         verbose = verbose,
-                        selected_component = 'auto',
+                        selected_component = 0,
                         num_of_voxels = 50)
 
         overrides_dict = defaults | overrides

@@ -10,23 +10,22 @@ various properties, and handling parametric image data.
 """
 
 import os
-import warnings
 import json
-from typing import Tuple, Callable, Union
-import nibabel
+from collections.abc import Callable
+from typing import Tuple, Union
+import warnings
+import ants
 import numpy as np
 import numba
 
-from petpal.kinetic_modeling.reference_tissue_models import (fit_mrtm2_2003_to_tac,
-                                                             calc_bp_from_mrtm2_2003_fit)
-from petpal.kinetic_modeling.fit_tac_with_rtms import (get_rtm_kwargs,
-                                                       get_rtm_method,
-                                                       get_rtm_output_size)
-from petpal.utils.time_activity_curve import TimeActivityCurve
-from petpal.utils.image_io import safe_load_4dpet_nifti
-from . import graphical_analysis
+from .reference_tissue_models import fit_mrtm2_2003_to_tac,calc_bp_from_mrtm2_2003_fit
+from .fit_tac_with_rtms import get_rtm_kwargs,get_rtm_method,get_rtm_output_size
+from ..utils.time_activity_curve import TimeActivityCurve
+from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
+                                      gen_3d_img_from_timeseries)
+from .graphical_analysis import get_graphical_analysis_method, get_index_from_threshold
 from ..input_function.blood_input import read_plasma_glucose_concentration
-from ..utils.image_io import safe_copy_meta, validate_two_images_same_dimensions
+from ..utils.image_io import safe_copy_meta
 from ..utils.time_activity_curve import safe_load_tac
 
 
@@ -40,7 +39,7 @@ def apply_linearized_analysis_to_all_voxels(pTAC_times: np.ndarray,
     Generates parametric images for 4D-PET data using the provided analysis method.
 
     This function iterates over each voxel in the given `tTAC_img` and applies the provided
-    `analysis_func` to compute analysis values. The `analysis_func` should be a numba.jit function
+    `analysis_func` to compute analysis values. The `analysis_func` should be a numba.njit function
     for optimization and should be following a signature compatible with either of the following:
     patlak_analysis, logan_analysis, or alt_logan_analysis.
 
@@ -56,7 +55,7 @@ def apply_linearized_analysis_to_all_voxels(pTAC_times: np.ndarray,
         t_thresh_in_mins (float): A float representing the threshold time in minutes.
                                   It is applied when calling the `analysis_func`.
 
-        analysis_func (Callable): A numba.jit function to apply to each voxel for given PET data.
+        analysis_func (Callable): A numba.njit function to apply to each voxel for given PET data.
                                   It should take the following arguments:
 
                                     - input_tac_values: 1D numpy array for input TAC values
@@ -87,11 +86,79 @@ def apply_linearized_analysis_to_all_voxels(pTAC_times: np.ndarray,
     return slope_img, intercept_img
 
 
+
+@numba.njit()
+def parametric_refregion_analysis(pTAC_times: np.ndarray,
+                                  pTAC_vals: np.ndarray,
+                                  tTAC_img: np.ndarray,
+                                  t_thresh_in_mins: float,
+                                  k2_prime: float,
+                                  analysis_func: Callable) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates parametric images for 4D-PET data using the provided analysis method. This function
+    is intended only for use with reference region linear methods, such as Logan w/o arterial
+    input.
+
+    This function iterates over each voxel in the given `tTAC_img` and applies the provided
+    `analysis_func` to compute analysis values. The `analysis_func` should be a numba.njit function
+    for optimization and should be following a signature compatible with either of the following:
+    patlak_analysis, logan_analysis, or alt_logan_analysis.
+
+    Args:
+        pTAC_times (np.ndarray): A 1D array representing the input TAC times in minutes.
+
+        pTAC_vals (np.ndarray): A 1D array representing the input TAC values. This array should
+                                be of the same length as `pTAC_times`.
+
+        tTAC_img (np.ndarray): A 4D array representing the 3D PET image over time.
+                               The shape of this array should be (x, y, z, time).
+
+        t_thresh_in_mins (float): A float representing the threshold time in minutes.
+                                  It is applied when calling the `analysis_func`.
+
+        k2_prime (float): The population averaged reference region k2 value, passed to
+                          `analysis_func`.
+                                  
+        analysis_func (Callable): A numba.njit function to apply to each voxel for given PET data.
+                                  It should take the following arguments:
+
+                                    - input_tac_values: 1D numpy array for input TAC values
+                                    - region_tac_values: 1D numpy array for regional TAC values
+                                    - tac_times_in_minutes: 1D numpy array for TAC times in minutes
+                                    - t_thresh_in_minutes: a float for threshold time in minutes
+                                    - k2_prime: the population averaged reference region k2 value
+                    
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: A tuple of two 3D numpy arrays representing the calculated
+            slope image and the intercept image, each of the same spatial dimensions as `tTAC_img`.
+
+    """
+    img_dims = tTAC_img.shape
+
+    slope_img = np.zeros((img_dims[0], img_dims[1], img_dims[2]), float)
+    intercept_img = np.zeros_like(slope_img)
+
+    for i in range(0, img_dims[0], 1):
+        for j in range(0, img_dims[1], 1):
+            for k in range(0, img_dims[2], 1):
+                analysis_vals = analysis_func(input_tac_values=pTAC_vals,
+                                              region_tac_values=tTAC_img[i, j, k, :],
+                                              tac_times_in_minutes=pTAC_times,
+                                              t_thresh_in_minutes=t_thresh_in_mins,
+                                              k2_prime=k2_prime)
+                slope_img[i, j, k] = analysis_vals[0]
+                intercept_img[i, j, k] = analysis_vals[1]
+
+    return slope_img, intercept_img
+
+
 def generate_parametric_images_with_graphical_method(pTAC_times: np.ndarray,
                                                      pTAC_vals: np.ndarray,
                                                      tTAC_img: np.ndarray,
                                                      t_thresh_in_mins: float,
-                                                     method_name: str) -> Tuple[np.ndarray, np.ndarray]:
+                                                     method_name: str,
+                                                     **run_kwargs) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generates parametric images for 4D-PET data using a specified graphical analysis method.
 
@@ -111,24 +178,37 @@ def generate_parametric_images_with_graphical_method(pTAC_times: np.ndarray,
         t_thresh_in_mins (float): A float representing the threshold time in minutes.
 
         method_name (str): The analysis method's name to apply. Must be one of: 'patlak', 'logan',
-            or 'alt_logan'.
+            'alt_logan', or 'logan_ref'.
+
+        run_kwargs: Keyword arguments with additional parameters for kinetic modeling. Currently
+            only supports `k2_prime`.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: A tuple of two 3D numpy arrays representing the calculated
             slope image and the intercept image, each of the same spatial dimensions as `tTAC_img`.
-                                       
+
 
     Raises:
-       ValueError: If the `method_name` is not one of the following: 'patlak', 'logan', 'alt_logan'.
+        ValueError: If the `method_name` is not one of the following: 'patlak', 'logan',
+            'alt_logan', 'logan_ref'.
     """
-
-    analysis_func = graphical_analysis.get_graphical_analysis_method(
-        method_name=method_name)
-    slope_img, intercept_img = apply_linearized_analysis_to_all_voxels(pTAC_times=pTAC_times,
-                                                                       pTAC_vals=pTAC_vals,
-                                                                       tTAC_img=tTAC_img,
-                                                                       t_thresh_in_mins=t_thresh_in_mins,
-                                                                       analysis_func=analysis_func)
+    if len(run_kwargs)>0:
+        warnings.warn(f"Got the following run kwargs: {run_kwargs}. Kwargs other than 'k2_prime'"
+                      "will be ignored.")
+    analysis_func = get_graphical_analysis_method(method_name=method_name)
+    if method_name!='logan_ref':
+        slope_img, intercept_img = apply_linearized_analysis_to_all_voxels(pTAC_times=pTAC_times,
+                                                                           pTAC_vals=pTAC_vals,
+                                                                           tTAC_img=tTAC_img,
+                                                                           t_thresh_in_mins=t_thresh_in_mins,
+                                                                           analysis_func=analysis_func)
+    else:
+        slope_img, intercept_img = parametric_refregion_analysis(pTAC_times=pTAC_times,
+                                                                 pTAC_vals=pTAC_vals,
+                                                                 tTAC_img=tTAC_img,
+                                                                 t_thresh_in_mins=t_thresh_in_mins,
+                                                                 analysis_func=analysis_func,
+                                                                 k2_prime=run_kwargs['k2_prime'])
 
     return slope_img, intercept_img
 
@@ -259,13 +339,11 @@ def generate_cmrglc_parametric_image_from_ki_image(input_ki_image_path: str,
     Returns:
         None
     """
-    patlak_image = safe_load_4dpet_nifti(filename=input_ki_image_path)
-    patlak_affine = patlak_image.affine
+    patlak_image = ants.image_read(filename=input_ki_image_path)
     plasma_glucose = read_plasma_glucose_concentration(file_path=plasma_glucose_file_path,
                                                        correction_scale=glucose_rescaling_constant)
-    cmr_vals = (plasma_glucose / lumped_constant) * patlak_image.get_fdata() * rescaling_const
-    cmr_image = nibabel.Nifti1Image(dataobj=cmr_vals, affine=patlak_affine)
-    nibabel.save(cmr_image, f"{output_image_path}")
+    cmr_image = (plasma_glucose / lumped_constant) * patlak_image * rescaling_const
+    ants.image_write(cmr_image, f"{output_image_path}")
     safe_copy_meta(input_image_path=input_ki_image_path, out_image_path=output_image_path)
 
 
@@ -308,12 +386,17 @@ class ReferenceTissueParametricImage:
             output_directory (str): Path to folder where analysis is saved.
             output_filename_prefix (str): Prefix for output files saved after analysis.
             method (str): RTM method to run. Default 'mrtm2'.
+
+        Raises:
+            ValueError: When pet_image_path and mask_image_path are not in same physical space.
         """
         self.reference_tac = TimeActivityCurve.from_tsv(filename=reference_tac_path)
-        self.pet_image = safe_load_4dpet_nifti(pet_image_path)
-        self.mask_image = safe_load_4dpet_nifti(mask_image_path)
+        self.pet_image = ants.image_read(pet_image_path)
+        self.mask_image = ants.image_read(mask_image_path)
 
-        validate_two_images_same_dimensions(self.pet_image,self.mask_image,check_4d=False)
+        if not check_physical_space_for_ants_image_pair(self.pet_image,self.mask_image):
+            raise ValueError(f'Input image {pet_image_path} and mask {mask_image_path} not in'
+                             'same physical space.')
 
         self.output_directory = output_directory
         self.output_filename_prefix = output_filename_prefix
@@ -365,8 +448,7 @@ class ReferenceTissueParametricImage:
                            props: dict,
                            bounds: Union[None, np.ndarray] = None,
                            k2_prime: float=None,
-                           t_thresh_in_mins: float=None,
-                           image_scale: float=None):
+                           t_thresh_in_mins: float=None):
         """
         Set kwargs used for running parametric analysis.
 
@@ -376,14 +458,12 @@ class ReferenceTissueParametricImage:
         props['Bounds'] = bounds
         props['k2Prime'] = k2_prime
         props['ThresholdTime'] = t_thresh_in_mins
-        props['ImageScale'] = image_scale
 
 
     def run_parametric_analysis(self,
                                 bounds: Union[None, np.ndarray] = None,
                                 k2_prime: float=None,
-                                t_thresh_in_mins: float=None,
-                                image_scale: float=1):
+                                t_thresh_in_mins: float=None):
         """
         Run the analysis.
 
@@ -400,8 +480,8 @@ class ReferenceTissueParametricImage:
             fit_results (np.ndarray, Tuple[np.ndarray, np.ndarray]): Kinetic parameters and
                 simulated data returned as arrays. 
         """
-        pet_np = self.pet_image.get_fdata()
-        mask_np = self.mask_image.get_fdata()
+        pet_np = self.pet_image.numpy()
+        mask_np = self.mask_image.numpy()
         tac_times_in_minutes = self.reference_tac.times
         ref_tac_vals = self.reference_tac.activity
         method = self.method
@@ -412,7 +492,7 @@ class ReferenceTissueParametricImage:
                                          t_thresh_in_mins=t_thresh_in_mins)
 
         fit_results = apply_rtm2_to_all_voxels(tac_times_in_minutes=tac_times_in_minutes,
-                                               tgt_image=pet_np * image_scale,
+                                               tgt_image=pet_np,
                                                ref_tac_vals=ref_tac_vals,
                                                mask_img=mask_np,
                                                method=method,
@@ -424,16 +504,14 @@ class ReferenceTissueParametricImage:
         """
         Save parametric images.
         """
-        fit_image = self.fit_results
-        pet_image = self.pet_image
-        fit_nibabel = nibabel.nifti1.Nifti1Image(dataobj=fit_image,
-                                                 affine=pet_image.affine,
-                                                 header=pet_image.header)
+        fit_arr = self.fit_results
+        pet_img = self.pet_image
+        fit_img = ants.from_numpy_like(data=fit_arr, image=pet_img)
 
         try:
             fit_image_path = os.path.join(self.output_directory,
                                     f"{self.output_filename_prefix}_desc-rtmfit_pet.nii.gz")
-            nibabel.save(fit_nibabel,fit_image_path)
+            ants.image_write(fit_img,fit_image_path)
         except IOError as exc:
             print("An IOError occurred while attempting to write the NIfTI image files.")
             raise exc from None
@@ -473,17 +551,14 @@ class ReferenceTissueParametricImage:
     def __call__(self,
                  bounds: np.ndarray=None,
                  t_thresh_in_mins: float=None,
-                 k2_prime: float=None,
-                 image_scale: float=None):
+                 k2_prime: float=None):
         self.run_parametric_analysis(bounds=bounds,
                                      t_thresh_in_mins=t_thresh_in_mins,
-                                     k2_prime=k2_prime,
-                                     image_scale=image_scale)
+                                     k2_prime=k2_prime)
         self.set_analysis_props(props=self.analysis_props,
                                 bounds=bounds,
                                 k2_prime=k2_prime,
-                                t_thresh_in_mins=t_thresh_in_mins,
-                                image_scale=image_scale)
+                                t_thresh_in_mins=t_thresh_in_mins)
         self.save_parametric_images()
         self.save_analysis_properties()
 
@@ -531,6 +606,7 @@ class GraphicalAnalysisParametricImage:
         """
         self.input_tac_path = os.path.abspath(input_tac_path)
         self.pet4D_img_path = os.path.abspath(pet4D_img_path)
+        self.pet_img = ants.image_read(filename=pet4D_img_path)
         self.output_directory = os.path.abspath(output_directory)
         self.output_filename_prefix = output_filename_prefix
         self.analysis_props = self.init_analysis_props()
@@ -553,6 +629,7 @@ class GraphicalAnalysisParametricImage:
             * ``StartFrameTime`` (float): The start time of the frame used in the analysis, filled in after the analysis.
             * ``EndFrameTime`` (float): The end time of the frame used in the analysis, filled in after the analysis.
             * ``ThresholdTime`` (float): The time threshold used in the analysis, filled in after the analysis.
+            * ``RunKwargs`` (dict): Keyword arguments passed on to the analysis function.
             * ``NumberOfPointsFit`` (int): The number of points fitted in the analysis, filled in after the analysis.
             * ``SlopeMaximum`` (float): The maximum slope found in the analysis, filled in after the analysis.
             * ``SlopeMinimum`` (float): The minimum slope found in the analysis, filled in after the analysis.
@@ -586,7 +663,7 @@ class GraphicalAnalysisParametricImage:
         }
         return props
 
-    def run_analysis(self, method_name: str, t_thresh_in_mins: float, image_scale: float=1./37000):
+    def run_analysis(self, method_name: str, t_thresh_in_mins: float, **run_kwargs):
         """
         Executes the complete analysis procedure.
 
@@ -597,6 +674,8 @@ class GraphicalAnalysisParametricImage:
         Parameters:
             method_name (str): The name of the methodology adopted for the process.
             t_thresh_in_mins (float): The threshold time used through the analysis (in minutes).
+            run_kwargs: Additional keyword arguments passed on to
+                :func:`calculate_parametric_images` and :func:`calculate_analysis_properties`.
 
         See Also:
             * :func:`calculate_parametric_images`
@@ -607,9 +686,9 @@ class GraphicalAnalysisParametricImage:
 
         """
         self.calculate_parametric_images(
-            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, image_scale=image_scale)
+            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, **run_kwargs)
         self.calculate_analysis_properties(
-            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins)
+            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, **run_kwargs)
 
     def save_analysis(self):
         """
@@ -637,7 +716,8 @@ class GraphicalAnalysisParametricImage:
 
     def calculate_analysis_properties(self,
                                       method_name: str,
-                                      t_thresh_in_mins: float):
+                                      t_thresh_in_mins: float,
+                                      **run_kwargs):
         """
         Performs a set of calculations to collate various analysis properties.
 
@@ -646,9 +726,10 @@ class GraphicalAnalysisParametricImage:
         :meth:`calculate_parametric_images_properties` and :meth:`calculate_fit_properties`
         respectively.
 
-        Parameters:
+        Args:
             method_name (str): The name of the method used for the fitting process.
             t_thresh_in_mins (float): The threshold time (in minutes) used for the fitting process.
+            run_kwargs: Additional keyword arguments passed on to :func:`calculate_fit_properties`.
 
         See Also:
             * :meth:`calculate_parametric_images_properties`
@@ -659,9 +740,9 @@ class GraphicalAnalysisParametricImage:
         """
         self.calculate_parametric_images_properties()
         self.calculate_fit_properties(
-            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins)
+            method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, **run_kwargs)
 
-    def calculate_fit_properties(self, method_name: str, t_thresh_in_mins: float):
+    def calculate_fit_properties(self, method_name: str, t_thresh_in_mins: float, **run_kwargs):
         """
         Calculates and stores the properties related to the fitting process.
 
@@ -670,9 +751,11 @@ class GraphicalAnalysisParametricImage:
         of points used in the fit. These values are stored in the instance's `analysis_props`
         variable.
 
-        Parameters:
+        Args:
             method_name (str): The name of the methodology adopted for the fitting process.
             t_thresh_in_mins (float): The threshold time (in minutes) used in the fitting process.
+            run_kwargs: Additional keyword arguments used in the analysis. These are saved to the
+                analysis properties as individual properties.
 
         Note:
             This method relies on the :func:`safe_load_tac` function to load time-activity curve
@@ -691,8 +774,11 @@ class GraphicalAnalysisParametricImage:
         self.analysis_props['ThresholdTime'] = t_thresh_in_mins
         self.analysis_props['MethodName'] = method_name
 
+        for analysis_parameter_key, analysis_parameter_val in run_kwargs.items():
+            self.analysis_props[analysis_parameter_key] = analysis_parameter_val
+
         p_tac_times, _ = safe_load_tac(filename=self.input_tac_path)
-        t_thresh_index = graphical_analysis.get_index_from_threshold(times_in_minutes=p_tac_times,
+        t_thresh_index = get_index_from_threshold(times_in_minutes=p_tac_times,
                                                                      t_thresh_in_minutes=t_thresh_in_mins)
         self.analysis_props['StartFrameTime'] = p_tac_times[t_thresh_index]
         self.analysis_props['EndFrameTime'] = p_tac_times[-1]
@@ -742,10 +828,10 @@ class GraphicalAnalysisParametricImage:
         No explicit return value. The results are stored within the instance's `analysis_props`
         variable.
         """
-        self.analysis_props['SlopeMaximum'] = np.max(self.slope_image)
-        self.analysis_props['SlopeMinimum'] = np.min(self.slope_image)
-        self.analysis_props['SlopeMean'] = np.mean(self.slope_image)
-        self.analysis_props['SlopeVariance'] = np.var(self.slope_image)
+        self.analysis_props['SlopeMaximum'] = np.nanmax(self.slope_image)
+        self.analysis_props['SlopeMinimum'] = np.nanmin(self.slope_image)
+        self.analysis_props['SlopeMean'] = np.nanmean(self.slope_image)
+        self.analysis_props['SlopeVariance'] = np.nanvar(self.slope_image)
 
     def calculate_intercept_image_properties(self):
         """
@@ -765,35 +851,31 @@ class GraphicalAnalysisParametricImage:
         No explicit return value. The results are stored within the instance's `analysis_props`
         variable.
         """
-        self.analysis_props['InterceptMaximum'] = np.max(self.intercept_image)
-        self.analysis_props['InterceptMinimum'] = np.min(self.intercept_image)
-        self.analysis_props['InterceptMean'] = np.mean(self.intercept_image)
-        self.analysis_props['InterceptVariance'] = np.var(self.intercept_image)
+        self.analysis_props['InterceptMaximum'] = np.nanmax(self.intercept_image)
+        self.analysis_props['InterceptMinimum'] = np.nanmin(self.intercept_image)
+        self.analysis_props['InterceptMean'] = np.nanmean(self.intercept_image)
+        self.analysis_props['InterceptVariance'] = np.nanvar(self.intercept_image)
 
 
     def calculate_parametric_images(self,
                                     method_name: str,
                                     t_thresh_in_mins: float,
-                                    image_scale: float):
+                                    **run_kwargs):
         """
         Performs graphical analysis of PET parametric images and generates/updates the slope and
         intercept images.
 
-        Important:
-            This method scales the PET image values by the ``image_scale`` argument. This quantity
-            is inferred from the call to :meth:`run_analysis` which uses a default value of 1/37000
-            for unit conversion of the input PET image from Bq/mL to μCi/mL.
-
         This method uses the given graphical analysis method and threshold to perform the analysis
         given the input Time Activity Curve (TAC) and 4D PET image, and updates the slope and 
-        intercept images accordingly. PET images are loaded from the specified path and multiplied
-        by ``image_scale`` to convert the image into the proper units. Then, the parametric images 
-        are calculated using the specified graphical method and threshold time by explicitly
-        analyzing each voxel in the 4D PET image.
+        intercept images accordingly. PET images are loaded from the specified path. Then, the 
+        parametric images are calculated using the specified graphical method and threshold time by
+        explicitly analyzing each voxel in the 4D PET image.
 
         Args:
             method_name (str): The name of the graphical analysis method to be used.
             t_thresh_in_mins (float): The threshold time in minutes.
+            run_kwargs: Additional keyword arguments passed on to
+                :func:`generate_parametric_images_with_graphical_method`.
 
         Returns:
             None
@@ -810,18 +892,15 @@ class GraphicalAnalysisParametricImage:
 
         """
         p_tac_times, p_tac_vals = safe_load_tac(self.input_tac_path)
-        nifty_pet4d_img = safe_load_4dpet_nifti(filename=self.pet4D_img_path)
-        warnings.warn(
-            f"PET image values are being scaled by {image_scale}.",
-            UserWarning)
         self.slope_image, self.intercept_image = generate_parametric_images_with_graphical_method(
             pTAC_times=p_tac_times,
             pTAC_vals=p_tac_vals,
-            tTAC_img=nifty_pet4d_img.get_fdata() * image_scale,
-            t_thresh_in_mins=t_thresh_in_mins, method_name=method_name)
+            tTAC_img=self.pet_img.numpy(),
+            t_thresh_in_mins=t_thresh_in_mins, method_name=method_name,
+            **run_kwargs)
 
-    def __call__(self, method_name, t_thresh_in_mins, image_scale):
-        self.run_analysis(method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, image_scale=image_scale)
+    def __call__(self, method_name, t_thresh_in_mins, **run_kwargs):
+        self.run_analysis(method_name=method_name, t_thresh_in_mins=t_thresh_in_mins, **run_kwargs)
         self.save_analysis()
 
     def save_parametric_images(self):
@@ -850,17 +929,13 @@ class GraphicalAnalysisParametricImage:
         file_name_prefix = os.path.join(self.output_directory,
                                         f"{self.output_filename_prefix}_desc-"
                                         f"{self.analysis_props['MethodName']}")
-        nifty_img_affine = safe_load_4dpet_nifti(
-            filename=self.pet4D_img_path).affine
+        template_img = gen_3d_img_from_timeseries(input_img=self.pet_img)
         try:
-            tmp_slope_img = nibabel.Nifti1Image(
-                dataobj=self.slope_image, affine=nifty_img_affine)
-            nibabel.save(tmp_slope_img, f"{file_name_prefix}-slope.nii.gz")
+            tmp_slope_img = ants.from_numpy_like(data=self.slope_image, image=template_img)
+            ants.image_write(tmp_slope_img, f"{file_name_prefix}_slope.nii.gz")
 
-            tmp_intercept_img = nibabel.Nifti1Image(
-                dataobj=self.intercept_image, affine=nifty_img_affine)
-            nibabel.save(tmp_intercept_img,
-                         f"{file_name_prefix}_intercept.nii.gz")
+            tmp_intercept_img = ants.from_numpy_like(self.intercept_image, image=template_img)
+            ants.image_write(tmp_intercept_img,f"{file_name_prefix}_intercept.nii.gz")
 
             safe_copy_meta(input_image_path=self.pet4D_img_path,
                            out_image_path=f"{file_name_prefix}_slope.nii.gz")

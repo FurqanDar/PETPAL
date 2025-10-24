@@ -63,8 +63,10 @@ def main():
     grp_params.add_argument("-t", "--threshold-in-mins", required=True, type=float,
                             help="Threshold in minutes below which data points will be discarded.")
     grp_params.add_argument("-m", "--method-name", required=True,
-                            choices=['patlak', 'logan', 'alt_logan'],
+                            choices=['patlak', 'logan', 'alt_logan', 'logan_ref'],
                             help="Name of the method for generating the plot.")
+    grp_params.add_argument("-k", "--k2-prime", required=False, type=float, default=None,
+                            help="k2_prime in minutes for Logan reference plot.")
 
 
     parser_reference = subparsers.add_parser("reference-tissue",help="Parametric image with "
@@ -99,12 +101,17 @@ def main():
         raise SystemExit('Exiting without command')
 
     if args.command=='graphical-analysis':
+        run_kwargs = {}
+        if args.k2_prime is not None:
+            run_kwargs['k2_prime'] = args.k2_prime
+
         param_img = GraphicalAnalysisParametricImage(input_tac_path=args.input_tac_path,
                                                     pet4D_img_path=args.pet4D_img_path,
                                                     output_directory=args.output_directory,
                                                     output_filename_prefix=args.output_filename_prefix)
         param_img.run_analysis(method_name=args.method_name,
-                               t_thresh_in_mins=args.threshold_in_mins)
+                               t_thresh_in_mins=args.threshold_in_mins,
+                               **run_kwargs)
         param_img.save_analysis()
 
     if args.command=='reference-tissue':

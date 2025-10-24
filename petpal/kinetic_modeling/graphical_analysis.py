@@ -1,13 +1,14 @@
 """
-This module provides functions and a key class, :class:`GraphicalAnalysis`, for performing graphical analysis on Time
-Activity Curve (TAC) data. It heavily utilizes Numpy and supports various analysis methods like Patlak, Logan, and
-alternative Logan analysis.
+This module provides functions and a key class, :class:`GraphicalAnalysis`, for performing
+graphical analysis on Time Activity Curve (TAC) data. It heavily utilizes Numpy and supports
+various analysis methods like Patlak, Logan, and alternative Logan analysis.
 
-The :class:`GraphicalAnalysis` class encapsulates the main functionality of the module. It provides an organized way to
-perform graphical analysis where it initializes with paths to input data and output details, runs an analysis using a
-specific method, calculates the best fit parameters, computes properties related to the fitting process, and stores the
-analysis results. All these properties and results are stored within an instance's 'analysis_props' dictionary,
-providing an organized storage of result of an analysis task.
+The :class:`GraphicalAnalysis` class encapsulates the main functionality of the module. It provides
+an organized way to perform graphical analysis where it initializes with paths to input data and
+output details, runs an analysis using a specific method, calculates the best fit parameters,
+computes properties related to the fitting process, and stores the analysis results. All these
+properties and results are stored within an instance's 'analysis_props' dictionary, providing an
+organized storage of result of an analysis task.
 
 TODO:
     * Check if it makes more sense to lift out the more mathy methods out into a separate module.
@@ -17,7 +18,8 @@ TODO:
     
 """
 
-from typing import Callable, Tuple
+from collections.abc import Callable
+from typing import Tuple
 import os
 import json
 import numba
@@ -46,8 +48,9 @@ def _line_fitting_make_rhs_matrix_from_xdata(xdata: np.ndarray) -> np.ndarray:
 def fit_line_to_data_using_lls(xdata: np.ndarray, ydata: np.ndarray) -> np.ndarray:
     """Find the linear least squares solution given the x and y variables.
     
-    Performs a linear least squares fit to the provided data. Explicitly calls numpy's ``linalg.lstsq`` method by
-    constructing the matrix equations. We assume that ``xdata`` and ``ydata`` have the same number of elements.
+    Performs a linear least squares fit to the provided data. Explicitly calls numpy's
+    ``linalg.lstsq`` method by constructing the matrix equations. We assume that ``xdata`` and
+    ``ydata`` have the same number of elements.
     
     Args:
         xdata: Array of independent variable values
@@ -64,7 +67,8 @@ def fit_line_to_data_using_lls(xdata: np.ndarray, ydata: np.ndarray) -> np.ndarr
 
 
 @numba.njit()
-def fit_line_to_data_using_lls_with_rsquared(xdata: np.ndarray, ydata: np.ndarray) -> Tuple[float, float, float]:
+def fit_line_to_data_using_lls_with_rsquared(xdata: np.ndarray,
+                                             ydata: np.ndarray) -> Tuple[float, float, float]:
     """Fits a line to the data using least squares and explicitly computes the r-squared value.
 
     Args:
@@ -72,8 +76,8 @@ def fit_line_to_data_using_lls_with_rsquared(xdata: np.ndarray, ydata: np.ndarra
         ydata (np.ndarray): Y-coordinates of the data.
 
     Returns:
-        tuple: A tuple containing three float values: the intercept of the fitted line, the slope of the fitted line,
-        and the r-squared value.
+        tuple: A tuple containing three float values: the intercept of the fitted line, the slope
+        of the fitted line, and the r-squared value.
     """
     make_2d_matrix = _line_fitting_make_rhs_matrix_from_xdata
     matrix = make_2d_matrix(xdata)
@@ -86,11 +90,13 @@ def fit_line_to_data_using_lls_with_rsquared(xdata: np.ndarray, ydata: np.ndarra
 
 
 @numba.njit()
-def cumulative_trapezoidal_integral(xdata: np.ndarray, ydata: np.ndarray, initial: float = 0.0) -> np.ndarray:
+def cumulative_trapezoidal_integral(xdata: np.ndarray,
+                                    ydata: np.ndarray,
+                                    initial: float = 0.0) -> np.ndarray:
     """Calculates the cumulative integral of `ydata` over `xdata` using the trapezoidal rule.
     
-    This function is based `heavily` on the :py:func:`scipy.integrate.cumulative_trapezoid` implementation
-    (`source <https://github.com/scipy/scipy/blob/v1.12.0/scipy/integrate/_quadrature.py#L432-L536>`_).
+    This function is based `heavily` on the :py:func:`scipy.integrate.cumulative_trapezoid`
+    implementation (`source <https://github.com/scipy/scipy/blob/v1.12.0/scipy/integrate/_quadrature.py#L432-L536>`_).
     This implementation only works for 1D arrays and was implemented to work with :mod:`numba`.
     
     Args:
@@ -104,17 +110,18 @@ def cumulative_trapezoidal_integral(xdata: np.ndarray, ydata: np.ndarray, initia
     cum_int = np.zeros(len(xdata))
     cum_int[0] = initial
     cum_int[1:] = np.cumsum(dx * (ydata[1:] + ydata[:-1]) / 2.0)
-    
+
     return cum_int
 
 
 @numba.njit()
 def calculate_patlak_x(tac_times: np.ndarray, tac_vals: np.ndarray) -> np.ndarray:
-    r"""Calculates the x-variable in Patlak analysis :math:`\left(\frac{\int_{0}^{T}f(t)\mathrm{d}t}{f(T)}\right)`.
+    r"""Calculates the x-variable in Patlak analysis
+    :math:`\left(\frac{\int_{0}^{T}f(t)\mathrm{d}t}{f(T)}\right)`.
     
-    Patlak-Gjedde analysis is a linearization of the 2-TCM with irreversible uptake in the second compartment.
-    Therefore, we essentially have to fit a line to some data :math:`y = mx+b`. This function calculates the :math:`x`
-    variable for Patlak analysis where,
+    Patlak-Gjedde analysis is a linearization of the 2-TCM with irreversible uptake in the second
+    compartment. Therefore, we essentially have to fit a line to some data :math:`y = mx+b`. This
+    function calculates the :math:`x` variable for Patlak analysis where,
     
     .. math::
     
@@ -130,8 +137,10 @@ def calculate_patlak_x(tac_times: np.ndarray, tac_vals: np.ndarray) -> np.ndarra
         (np.ndarray): Patlak x-variable. Cumulative integral of activity divided by activity.
         
     """
-    cumulative_integral = cumulative_trapezoidal_integral(xdata=tac_times, ydata=tac_vals, initial=0.0)
-    
+    cumulative_integral = cumulative_trapezoidal_integral(xdata=tac_times,
+                                                          ydata=tac_vals,
+                                                          initial=0.0)
+
     return cumulative_integral / tac_vals
 
 
@@ -168,7 +177,8 @@ def patlak_analysis(tac_times_in_minutes: np.ndarray,
         tac_times_in_minutes (np.ndarray): Array of times in minutes.
         input_tac_values (np.ndarray): Array of input TAC values
         region_tac_values (np.ndarray): Array of ROI TAC values
-        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values after the threshold.
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
 
     Returns:
         (np.ndarray): Array containing :math:`(K_{i}, V_{0})` values.
@@ -242,21 +252,25 @@ def logan_analysis(tac_times_in_minutes: np.ndarray,
                    input_tac_values: np.ndarray,
                    region_tac_values: np.ndarray,
                    t_thresh_in_minutes: float) -> np.ndarray:
-    """Performs Logan analysis on given input TAC, regional TAC, times and threshold, considering non-zero values.
+    """Performs Logan analysis on given input TAC, regional TAC, times and threshold, considering
+    non-zero values.
 
-    This function is similar to :func:`logan_analysis_with_rsquared`, but avoids the issue of division by zero by
-    only considering non-zero TAC values for the region TAC since it is in the denominator. If the number of non-zero
-    indices is less than or equal to 2, or if the number of time points after the threshold is less than or equal to 2,
-    the function returns an array of NaNs.
+    This function is similar to :func:`logan_analysis_with_rsquared`, but avoids the issue of
+    division by zero by only considering non-zero TAC values for the region TAC since it is in
+    the denominator. If the number of non-zero indices is less than or equal to 2, or if the number
+    of time points after the threshold is less than or equal to 2, the function returns an array of
+    NaNs.
 
     Args:
         tac_times_in_minutes (np.ndarray): Array of times in minutes.
         input_tac_values (np.ndarray): Array of input TAC values.
         region_tac_values (np.ndarray): Array of ROI TAC values.
-        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values after the threshold.
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
 
     Returns:
-        np.ndarray: Array of two elements - (slope, intercept) of the best-fit line to the given data.
+        np.ndarray: Array of two elements - (slope, intercept) of the best-fit line to the given
+            data.
 
     .. important::
         * The interpretation of the returned values depends on the underlying kinetic model.
@@ -329,28 +343,134 @@ def logan_analysis_with_rsquared(tac_times_in_minutes: np.ndarray,
     return logan_values
 
 
+@numba.njit()
+def logan_ref_region_analysis(tac_times_in_minutes: np.ndarray,
+                              input_tac_values: np.ndarray,
+                              region_tac_values: np.ndarray,
+                              t_thresh_in_minutes: float,
+                              k2_prime: float) -> np.ndarray:
+    """
+    Performs Logan with reference region input function on given input TAC, regional TAC, times,
+    threshold, and population averaged reference region k2.
+
+    Args:
+        tac_times_in_minutes (np.ndarray): Array of times in minutes.
+        input_tac_values (np.ndarray): Array of input TAC values
+        region_tac_values (np.ndarray): Array of ROI TAC values
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
+        k2_prime (float): Population averaged k2 value for the reference region.
+
+    Returns:
+        np.ndarray: Array of two elements - (slope, intercept) of the best-fit line to the given
+            data.
+
+    .. important::
+        * The interpretation of the values depends on the underlying kinetic model.
+        * We assume that the input TAC and ROI TAC values are sampled at the same times.
+        
+    """
+
+    non_zero_indices = np.argwhere(region_tac_values != 0.).T[0]
+
+    if len(non_zero_indices) <= 2:
+        return np.asarray([np.nan, np.nan])
+
+    t_thresh = get_index_from_threshold(times_in_minutes=tac_times_in_minutes[non_zero_indices],
+                                        t_thresh_in_minutes=t_thresh_in_minutes)
+
+    if len(tac_times_in_minutes[non_zero_indices][t_thresh:]) <= 2:
+        return np.asarray([np.nan, np.nan])
+
+    logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=input_tac_values)
+    logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=region_tac_values)
+
+    logan_x_ref_region_term = input_tac_values[non_zero_indices][t_thresh:]/k2_prime
+    logan_x_numerator = logan_x[non_zero_indices][t_thresh:] + logan_x_ref_region_term
+    logan_x = logan_x_numerator / region_tac_values[non_zero_indices][t_thresh:]
+    logan_y = logan_y[non_zero_indices][t_thresh:] / region_tac_values[non_zero_indices][t_thresh:]
+
+    logan_values = fit_line_to_data_using_lls(xdata=logan_x, ydata=logan_y)
+
+    return logan_values
+
+
+@numba.njit()
+def logan_ref_region_analysis_with_rsquared(tac_times_in_minutes: np.ndarray,
+                                            input_tac_values: np.ndarray,
+                                            region_tac_values: np.ndarray,
+                                            t_thresh_in_minutes: float,
+                                            k2_prime: float) -> tuple[float, float, float]:
+    """
+    Performs Logan with reference region input function on given input TAC, regional TAC, times,
+    threshold, and population averaged reference region k2.
+
+    Args:
+        tac_times_in_minutes (np.ndarray): Array of times in minutes.
+        input_tac_values (np.ndarray): Array of input TAC values
+        region_tac_values (np.ndarray): Array of ROI TAC values
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
+        k2_prime (float): Population averaged k2 value for the reference region.
+
+    Returns:
+        tuple: (slope, intercept, :math:`R^2`)
+
+    .. important::
+        * The interpretation of the values depends on the underlying kinetic model.
+        * We assume that the input TAC and ROI TAC values are sampled at the same times.
+        
+    """
+
+    non_zero_indices = np.argwhere(region_tac_values != 0.).T[0]
+
+    if len(non_zero_indices) <= 2:
+        return np.nan, np.nan, np.nan
+
+    t_thresh = get_index_from_threshold(times_in_minutes=tac_times_in_minutes[non_zero_indices],
+                                        t_thresh_in_minutes=t_thresh_in_minutes)
+
+    if len(tac_times_in_minutes[non_zero_indices][t_thresh:]) <= 2:
+        return np.nan, np.nan, np.nan
+
+    logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=input_tac_values)
+    logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=region_tac_values)
+
+    logan_x_ref_region_term = input_tac_values[non_zero_indices][t_thresh:]/k2_prime
+    logan_x_numerator = logan_x[non_zero_indices][t_thresh:] + logan_x_ref_region_term
+    logan_x = logan_x_numerator / region_tac_values[non_zero_indices][t_thresh:]
+    logan_y = logan_y[non_zero_indices][t_thresh:] / region_tac_values[non_zero_indices][t_thresh:]
+
+    logan_values = fit_line_to_data_using_lls_with_rsquared(xdata=logan_x, ydata=logan_y)
+
+    return logan_values
+
+
 @numba.njit
 def alternative_logan_analysis(tac_times_in_minutes: np.ndarray,
                                input_tac_values: np.ndarray,
                                region_tac_values: np.ndarray,
                                t_thresh_in_minutes: float) -> np.ndarray:
     """
-    Performs Alternative Logan analysis on given input TAC, regional TAC, times and threshold, considering non-zero
-    values for regional TAC.
+    Performs Alternative Logan analysis on given input TAC, regional TAC, times and threshold,
+    considering non-zero values for regional TAC.
 
-    This function is similar to :func:`alternative_logan_analysis_with_rsquared`, but avoids the issue of division by
-    zero by only considering non-zero TAC values for the region TAC since it is in the denominator. If the number of
-    indices is less than or equal to 2, or if the number of time points after the threshold is less than or equal to 2,
-    the function returns an array of NaNs.
+    This function is similar to :func:`alternative_logan_analysis_with_rsquared`, but avoids the
+    issue of division by zero by only considering non-zero TAC values for the region TAC since it
+    is in the denominator. If the number of indices is less than or equal to 2, or if the number of
+    time points after the threshold is less than or equal to 2, the function returns an array of
+    NaNs.
 
     Args:
         tac_times_in_minutes (np.ndarray): Array of times in minutes.
         input_tac_values (np.ndarray): Array of input TAC values.
         region_tac_values (np.ndarray): Array of ROI TAC values.
-        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values after the threshold.
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
 
     Returns:
-        np.ndarray: Array of two elements - (slope, intercept) of the best-fit line to the given data.
+        np.ndarray: Array of two elements - (slope, intercept) of the best-fit line to the given
+            data.
 
     .. important::
         * The interpretation of the returned values depends on the underlying kinetic model.
@@ -368,8 +488,10 @@ def alternative_logan_analysis(tac_times_in_minutes: np.ndarray,
     if len(tac_times_in_minutes[non_zero_indices][t_thresh:]) <= 2:
         return np.asarray([np.nan, np.nan])
 
-    alt_logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=input_tac_values)
-    alt_logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=region_tac_values)
+    alt_logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes,
+                                                  ydata=input_tac_values)
+    alt_logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes,
+                                                  ydata=region_tac_values)
 
     alt_logan_x = alt_logan_x[non_zero_indices][t_thresh:] / input_tac_values[non_zero_indices][t_thresh:]
     alt_logan_y = alt_logan_y[non_zero_indices][t_thresh:] / input_tac_values[non_zero_indices][t_thresh:]
@@ -389,7 +511,8 @@ def alternative_logan_analysis_with_rsquared(tac_times_in_minutes: np.ndarray,
         tac_times_in_minutes (np.ndarray): Array of times in minutes.
         input_tac_values (np.ndarray): Array of input TAC values
         region_tac_values (np.ndarray): Array of ROI TAC values
-        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values after the threshold.
+        t_thresh_in_minutes (np.ndarray): Threshold time in minutes. Line is fit for all values
+            after the threshold.
 
     Returns:
         tuple: (slope, intercept, :math:`R^2`)
@@ -411,8 +534,10 @@ def alternative_logan_analysis_with_rsquared(tac_times_in_minutes: np.ndarray,
     if len(tac_times_in_minutes[non_zero_indices][t_thresh:]) <= 2:
         return np.nan, np.nan, np.nan
 
-    alt_logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=input_tac_values)
-    alt_logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes, ydata=region_tac_values)
+    alt_logan_x = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes,
+                                                  ydata=input_tac_values)
+    alt_logan_y = cumulative_trapezoidal_integral(xdata=tac_times_in_minutes,
+                                                  ydata=region_tac_values)
 
     alt_logan_x = alt_logan_x[non_zero_indices][t_thresh:] / input_tac_values[non_zero_indices][t_thresh:]
     alt_logan_y = alt_logan_y[non_zero_indices][t_thresh:] / input_tac_values[non_zero_indices][t_thresh:]
@@ -427,21 +552,22 @@ def get_graphical_analysis_method(method_name: str) -> Callable:
     """
     Function for obtaining the appropriate graphical analysis method.
 
-    This function accepts a string specifying a graphical time-activity curve (TAC) analysis method. It returns a
-    reference to the function that performs the selected analysis method.
+    This function accepts a string specifying a graphical time-activity curve (TAC) analysis
+    method. It returns a reference to the function that performs the selected analysis method.
 
     Args:
-        method_name (str): The name of the graphical method. This should be one of the following strings: 'patlak',
-                           'logan', or 'alt_logan'.
+        method_name (str): The name of the graphical method. This should be one of the following
+            strings: 'patlak', 'logan', 'logan_ref', or 'alt_logan'.
 
     Returns:
-        function: A reference to the function that performs the corresponding graphical TAC analysis. The returned
-        function will take arguments specific to the analysis method, such as input TAC values, tissue TAC values, TAC
-        times in minutes, and threshold time in minutes.
+        function: A reference to the function that performs the corresponding graphical TAC
+        analysis. The returned function will take arguments specific to the analysis method, such
+        as input TAC values, tissue TAC values, TAC times in minutes, and threshold time in
+        minutes.
     
     Raises:
-        ValueError: If `method_name` is not one of the supported graphical analysis methods, i.e., 'patlak', 'logan', or
-                    'alt_logan'.
+        ValueError: If `method_name` is not one of the supported graphical analysis methods, i.e.,
+            'patlak', 'logan', 'logan_ref', or 'alt_logan'.
     
     Example:
         .. code-block:: python
@@ -460,34 +586,41 @@ def get_graphical_analysis_method(method_name: str) -> Callable:
             print(results)
                                     
     """
-    if method_name == "patlak":
-        return patlak_analysis
-    if method_name == "logan":
-        return logan_analysis
-    if method_name == "alt_logan":
-        return alternative_logan_analysis
-    raise ValueError(f"Invalid method_name! Must be either 'patlak', 'logan', or 'alt_logan'. Got {method_name}")
+    match method_name:
+        case "patlak":
+            return patlak_analysis
+        case "alt_logan":
+            return alternative_logan_analysis
+        case "logan":
+            return logan_analysis
+        case "logan_ref":
+            return logan_ref_region_analysis
+        case _:
+            raise ValueError("Invalid method_name! Must be either 'patlak', 'logan', 'alt_logan',"
+                             f"'logan_ref'. Got {method_name}")
 
 
 def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
     """
-    Function for obtaining the appropriate graphical analysis method which also calculates the r-squared value.
+    Function for obtaining the appropriate graphical analysis method which also calculates the
+    r-squared value.
 
-    This function accepts a string specifying a graphical time-activity curve (TAC) analysis method. It returns a
-    reference to the function that performs the selected analysis method.
+    This function accepts a string specifying a graphical time-activity curve (TAC) analysis
+    method. It returns a reference to the function that performs the selected analysis method.
 
     Args:
-        method_name (str): The name of the graphical method. This should be one of the following strings: 'patlak',
-                           'logan', or 'alt_logan'.
+        method_name (str): The name of the graphical method. This should be one of the following
+            strings: 'patlak', 'logan', 'logan_ref', or 'alt_logan'.
 
     Returns:
-        function: A reference to the function that performs the corresponding graphical TAC analysis. The returned
-        function will take arguments specific to the analysis method, such as input TAC values, tissue TAC values, TAC
-        times in minutes, and threshold time in minutes.
+        function: A reference to the function that performs the corresponding graphical TAC
+            analysis. The returned function will take arguments specific to the analysis method,
+            such as input TAC values, tissue TAC values, TAC times in minutes, and threshold time
+            in minutes.
 
     Raises:
-        ValueError: If `method_name` is not one of the supported graphical analysis methods, i.e., 'patlak', 'logan', or
-                    'alt_logan'.
+        ValueError: If `method_name` is not one of the supported graphical analysis methods, i.e.,
+            'patlak', 'logan', 'logan_ref' or 'alt_logan'.
 
     Example:
         .. code-block:: python
@@ -506,24 +639,30 @@ def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
             print(results)
             
     """
-    if method_name == "patlak":
-        return patlak_analysis_with_rsquared
-    if method_name == "logan":
-        return logan_analysis_with_rsquared
-    if method_name == "alt_logan":
-        return alternative_logan_analysis_with_rsquared
-    raise ValueError(f"Invalid method_name! Must be either 'patlak', 'logan', or 'alt_logan'. Got {method_name}")
+    match method_name:
+        case "patlak":
+            return patlak_analysis_with_rsquared
+        case "alt_logan":
+            return alternative_logan_analysis_with_rsquared
+        case "logan":
+            return logan_analysis_with_rsquared
+        case "logan_ref":
+            return logan_ref_region_analysis_with_rsquared
+        case _:
+            raise ValueError(f"Invalid method_name! Must be either 'patlak', 'logan', 'alt_logan', 'logan_ref'. Got {method_name}")
 
 
 class GraphicalAnalysis:
     """
     :class:`GraphicalAnalysis` to handle Graphical Analysis for time activity curve (TAC) data.
 
-    The :class:`GraphicalAnalysis` class provides methods for managing TAC data analysis. The class is initialized
-    with paths to input TAC data, region of interest (ROI) TAC data files, an output directory, and output filename prefix.
+    The :class:`GraphicalAnalysis` class provides methods for managing TAC data analysis. The class
+    is initialized with paths to input TAC data, region of interest (ROI) TAC data files, an output
+    directory, and output filename prefix.
 
-    Analysis is performed by specifying a method name and threshold time in the :func:`run_analysis` method. The results
-    of the analysis are stored within the instance's 'analysis_props' dictionary.
+    Analysis is performed by specifying a method name and threshold time in the
+    :func:`run_analysis` method. The results of the analysis are stored within the instance's
+    'analysis_props' dictionary.
 
     Key methods include:
     - :func:`init_analysis_props`: Initializes a dictionary with keys for analysis properties and default values.
@@ -533,7 +672,8 @@ class GraphicalAnalysis:
     - :func:`save_analysis`: Stores the 'analysis_props' dictionary into a JSON file.
 
     Raises:
-        RuntimeError: If the :func:`run_analysis` method has not been run before :func:`save_analysis` method.
+        RuntimeError: If the :func:`run_analysis` method has not been run before
+            :func:`save_analysis` method.
 
     Attributes:
         input_tac_path (str): The path to input TAC data file.
@@ -557,12 +697,14 @@ class GraphicalAnalysis:
         Initializes GraphicalAnalysis with provided paths and output details.
 
         Args:
-            input_tac_path (str): The path to the file containing input Time Activity Curve (TAC) data.
+            input_tac_path (str): The path to the file containing input Time Activity Curve (TAC)
+                data.
             roi_tac_path (str): The path to the file containing Region of Interest (ROI) TAC data.
             output_directory (str): The directory where the output of the analysis should be saved.
             output_filename_prefix (str): The prefix for the name of output file(s).
             method (str): The name of the graphical analysis method to be utilised.
-            fit_thresh_in_mins (float): The fitting threshold time in minutes for the analysis method.
+            fit_thresh_in_mins (float): The fitting threshold time in minutes for the analysis
+                method.
     
         Returns:
             None
@@ -580,15 +722,18 @@ class GraphicalAnalysis:
         """
         Initializes analysis properties dictionary.
 
-        This method initializes a dictionary with keys for all the analysis properties and default values set to None.
-        The paths to the input TAC and ROI TAC files are set from the object's properties.
+        This method initializes a dictionary with keys for all the analysis properties and default
+        values set to None. The paths to the input TAC and ROI TAC files are set from the object's
+        properties.
 
         Returns:
-            dict: A dictionary with keys for each analysis property and default values. The keys include 'FilePathPTAC'
-            (the file path to the input TAC file), 'FilePathTTAC' (the file path to the ROI TAC file), 'MethodName'
-            (the name of the method used in the analysis), 'ThresholdTime' (the threshold time for the analysis),
-            'StartFrameTime' and 'EndFrameTime' (the start and end times for the frame), 'NumberOfPointsFit' (The number
-            of points used in the fit), 'Slope', 'Intercept' and 'RSquared' (the slope, intercept and R-squared of the fit).
+            dict: A dictionary with keys for each analysis property and default values. The keys
+                include 'FilePathPTAC' (the file path to the input TAC file), 'FilePathTTAC' (the
+                file path to the ROI TAC file), 'MethodName' (the name of the method used in the
+                analysis), 'ThresholdTime' (the threshold time for the analysis), 'StartFrameTime'
+                and 'EndFrameTime' (the start and end times for the frame), 'NumberOfPointsFit'
+                (The number of points used in the fit), 'Slope', 'Intercept' and 'RSquared' (the
+                slope, intercept and R-squared of the fit).
         """
         props = {'FilePathPTAC': self.input_tac_path,
                  'FilePathTTAC': self.roi_tac_path,
@@ -602,38 +747,45 @@ class GraphicalAnalysis:
                  'RSquared': None}
         return props
 
-    def run_analysis(self):
+    def run_analysis(self, **run_kwargs):
         """
         Runs the graphical analysis on the data using the specified method.
 
-        This method is the main entry point to carry out the analysis. It executes the steps in order – first calculating
-        the fit, then calculating the properties of the fit.
+        This method is the main entry point to carry out the analysis. It executes the steps in
+        order, first calculating the fit, then calculating the properties of the fit.
+
+        Args:
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`calculate_fit` and :meth:`calculate_fit_properties`.
 
         Returns:
             None
 
         Side Effects:
-            Computes and updates the analysis-related properties in the object based on the provided method and threshold.
+            Computes and updates the analysis-related properties in the object based on the
+                provided method and threshold.
         """
-        self.calculate_fit()
-        self.calculate_fit_properties()
+        self.calculate_fit(**run_kwargs)
+        self.calculate_fit_properties(**run_kwargs)
 
-    def calculate_fit(self):
+    def calculate_fit(self, **run_kwargs):
         """
         Calculates the best fit parameters for a graphical analysis method.
     
-        This method applies the specified graphical analysis method to the Time Activity Curve (TAC) data and stores
-        the slope, intercept, and r-squared values of the fit in the analysis properties.
+        This method applies the specified graphical analysis method to the Time Activity Curve
+        (TAC) data and stores the slope, intercept, and r-squared values of the fit in the
+        analysis properties.
     
         Args:
-            method_name (str): The name of the graphical analysis method for which the fit should be calculated.
-            t_thresh_in_mins (float): The threshold time in minutes for the analysis method.
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                `analysis_func`.
     
         Returns:
             None
             
         Side Effect:
-            Updates 'Slope', 'Intercept', and 'RSquared' in self.analysis_props dictionary with calculated fit parameters.
+            Updates 'Slope', 'Intercept', and 'RSquared' in self.analysis_props dictionary with
+                calculated fit parameters.
 
         """
         p_tac_times, p_tac_vals = safe_load_tac(self.input_tac_path)
@@ -641,27 +793,31 @@ class GraphicalAnalysis:
         slope, intercept, rsquared = self.analysis_func(tac_times_in_minutes=p_tac_times,
                                                         input_tac_values=p_tac_vals,
                                                         region_tac_values=t_tac_vals,
-                                                        t_thresh_in_minutes=self.fit_thresh_in_mins)
+                                                        t_thresh_in_minutes=self.fit_thresh_in_mins,
+                                                        **run_kwargs)
         self.analysis_props['Slope'] = slope
         self.analysis_props['Intercept'] = intercept
         self.analysis_props['RSquared'] = rsquared
 
-    def calculate_fit_properties(self):
+    def calculate_fit_properties(self, **run_kwargs):
         """
         Calculates and stores the properties related to the fitting process.
 
-        This method calculates several properties related to the fitting process, including the threshold time, the name
-        of the method used, the start and end frame time, and the number of points used in the fit. These values are
-        stored in the instance's `analysis_props` variable.
+        This method calculates several properties related to the fitting process, including the
+        threshold time, the name of the method used, the start and end frame time, and the number
+        of points used in the fit. These values are stored in the instance's `analysis_props`
+        variable.
 
-        Parameters:
-            method_name (str): The name of the graphical method being used.
-            t_thresh_in_mins (float): The threshold time (in minutes) used in the fitting process.
+        Args:
+            run_kwargs: Additional keyword arguments used in the analysis. These are saved to the
+                analysis properties as individual properties.
+
 
         Note:
-            This method relies on the :func:`safe_load_tac` function to load time-activity curve (TAC) data from the
-            file at ``input_tac_path``, and the :func:`get_index <get_index_from_threshold>`
-            function to get the index from the threshold time.
+            This method relies on the :func:`safe_load_tac` function to load time-activity curve
+            (TAC) data from the file at ``input_tac_path``, and the
+            :func:`get_index <get_index_from_threshold>` function to get the index from the
+            threshold time.
 
         See also:
             * :func:`safe_load_tac`: Function to safely load TAC data from a file.
@@ -671,9 +827,14 @@ class GraphicalAnalysis:
             None. The results are stored within the instance's `analysis_props` variable.
         """
         self.analysis_props['ThresholdTime'] = self.fit_thresh_in_mins
+
+        for analysis_parameter_key, analysis_parameter_val in run_kwargs.items():
+            self.analysis_props[analysis_parameter_key] = analysis_parameter_val
+
         self.analysis_props['MethodName'] = self.method
         p_tac_times, _ = safe_load_tac(filename=self.input_tac_path)
-        t_thresh_index = get_index_from_threshold(times_in_minutes=p_tac_times, t_thresh_in_minutes=self.fit_thresh_in_mins)
+        t_thresh_index = get_index_from_threshold(times_in_minutes=p_tac_times,
+                                                  t_thresh_in_minutes=self.fit_thresh_in_mins)
         self.analysis_props['StartFrameTime'] = p_tac_times[t_thresh_index]
         self.analysis_props['EndFrameTime'] = p_tac_times[-1]
         self.analysis_props['NumberOfPointsFit'] = len(p_tac_times[t_thresh_index:])
@@ -682,30 +843,36 @@ class GraphicalAnalysis:
         """
         Saves the analysis properties to a JSON file.
 
-        This method saves the 'analysis_props' dictionary to a JSON file. The file is saved in the specified output directory
-        under a filename constructed from the 'output_filename_prefix' and the method name used in analysis. Before executing,
-        the method checks if analysis has been run by verifying if 'RSquared' in 'analysis_props' is not None.
+        This method saves the 'analysis_props' dictionary to a JSON file. The file is saved in the
+        specified output directory under a filename constructed from the 'output_filename_prefix'
+        and the method name used in analysis. Before executing, the method checks if analysis has
+        been run by verifying if 'RSquared' in 'analysis_props' is not None.
     
         Raises:
-            RuntimeError: If the 'run_analysis' method was not called before 'save_analysis' is invoked.
+            RuntimeError: If the 'run_analysis' method was not called before 'save_analysis' is
+                invoked.
     
         Returns:
             None
         """
         if self.analysis_props['RSquared'] is None:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
-        file_name_prefix = os.path.join(self.output_directory,
-                                        f"{self.output_filename_prefix}_desc-{self.analysis_props['MethodName']}")
-        analysis_props_file = f"{file_name_prefix}_fitprops.json"
+        out_img_prefix = f"{self.output_filename_prefix}_desc-{self.analysis_props['MethodName']}"
+        file_dir_prefix = os.path.join(self.output_directory, out_img_prefix)
+        analysis_props_file = f"{file_dir_prefix}_fitprops.json"
         with open(analysis_props_file, 'w',encoding='utf-8') as f:
             json.dump(obj=self.analysis_props, fp=f, indent=4)
 
-    def __call__(self):
+    def __call__(self, **run_kwargs):
         """
-        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the analysis properties.
+        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
+        analysis properties.
         
+        Args:
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`run_analysis`.
         """
-        self.run_analysis()
+        self.run_analysis(**run_kwargs)
         self.save_analysis()
 
 
@@ -737,7 +904,8 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
             output_directory (str): Directory for saving analysis results.
             output_filename_prefix (str): Prefix for output filenames.
             method (str): Method used for analysis.
-            fit_thresh_in_mins (Optional[float], optional): Threshold in minutes for fit calculation. Defaults to None.
+            fit_thresh_in_mins (Optional[float], optional): Threshold in minutes for fit
+                calculation. Defaults to None.
         """
         MultiTACAnalysisMixin.__init__(self,
                                        input_tac_path=input_tac_path,
@@ -766,10 +934,13 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         return analysis_props
 
 
-    def calculate_fit(self):
+    def calculate_fit(self, **run_kwargs):
         """
-        Calculates the fit for each TAC, updating the analysis properties with slope, intercept, and R-squared values.
-        Overrides :meth:`GraphicalAnalysis.calculate_fit`.
+        Calculates the fit for each TAC, updating the analysis properties with slope, intercept,
+        and R-squared values. Overrides :meth:`GraphicalAnalysis.calculate_fit`.
+
+        Args:
+            run_kwargs: Additional keyword arguments passed on to `analysis_func`.
         """
         p_tac_times, p_tac_vals = safe_load_tac(self.input_tac_path)
         for tac_id, a_tac in enumerate(self.tacs_files_list):
@@ -778,19 +949,25 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
                 slope, intercept, rsquared = self.analysis_func(tac_times_in_minutes=p_tac_times,
                                                                 input_tac_values=p_tac_vals,
                                                                 region_tac_values=t_tac_vals,
-                                                                t_thresh_in_minutes=self.fit_thresh_in_mins)
+                                                                t_thresh_in_minutes=self.fit_thresh_in_mins,
+                                                                **run_kwargs)
             except np.linalg.LinAlgError:
                 slope, intercept, rsquared = np.nan, np.nan, np.nan
             self.analysis_props[tac_id]['Slope'] = slope
             self.analysis_props[tac_id]['Intercept'] = intercept
             self.analysis_props[tac_id]['RSquared'] = rsquared
 
-    def calculate_fit_properties(self):
+    def calculate_fit_properties(self, **run_kwargs):
         """
         Calculates additional properties of the fit, such as threshold, method name,
         start and end times, and number of points. Iterates over all the TACs.
         
         Overrides :meth:`GraphicalAnalysis.calculate_fit_properties`
+
+        Args:
+            run_kwargs: Additional keyword arguments used in the analysis. These are saved to the
+                analysis properties as individual properties.
+
         """
         p_tac_times, _ = safe_load_tac(self.input_tac_path)
         t_thresh_index = get_index_from_threshold(times_in_minutes=p_tac_times,
@@ -799,8 +976,10 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         start_time=p_tac_times[t_thresh_index]
         end_time=p_tac_times[-1]
 
-        for tac_id, a_tac in enumerate(self.tacs_files_list):
+        for tac_id, _a_tac in enumerate(self.tacs_files_list):
             self.analysis_props[tac_id]['ThresholdTime'] = self.fit_thresh_in_mins
+            for analysis_parameter_key, analysis_parameter_val in run_kwargs.items():
+                self.analysis_props[tac_id][analysis_parameter_key] = analysis_parameter_val
             self.analysis_props[tac_id]['MethodName'] = self.method
             self.analysis_props[tac_id]['StartFrameTime'] = start_time
             self.analysis_props[tac_id]['EndFrameTime'] = end_time

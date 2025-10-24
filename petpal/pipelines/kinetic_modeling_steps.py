@@ -285,7 +285,6 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
         output_prefix (str): Prefix for the output files.
         method (str): Graphical analysis method.
         fit_threshold_in_mins (float): Threshold in minutes for fitting. Defaults to 30.0.
-        image_rescale (float): Scale for the image values. Defaults to 1.0 / 37000.0.
     """
     def __init__(self,
                  input_tac_path: str,
@@ -293,7 +292,8 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                  output_directory: str,
                  output_prefix: str,
                  method: str,
-                 fit_threshold_in_mins: float = 30.0):
+                 fit_threshold_in_mins: float = 30.0,
+                 **run_kwargs):
         """
         Initializes the GraphicalAnalysisStep with specified parameters.
 
@@ -304,14 +304,14 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             output_prefix (str): Prefix for the output files.
             method (str): Graphical analysis method.
             fit_threshold_in_mins (float, optional): Threshold in minutes for fitting. Defaults to 30.0.
-            
+            run_kwargs: Additional keyword arguments passed on to GraphicalAnalysis.__call__().
         """
         TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, roi_tacs_dir=roi_tacs_dir,
                                       output_directory=output_directory, output_prefix=output_prefix,
                                       is_ref_tac_based_model=False, method=method,
                                       fit_thresh_in_mins=fit_threshold_in_mins)
         ObjectBasedStep.__init__(self, name=f'roi_{method}_fit', class_type=pet_grph.MultiTACGraphicalAnalysis,
-                                 init_kwargs=self.init_kwargs, call_kwargs=dict())
+                                 init_kwargs=self.init_kwargs, call_kwargs=dict(**run_kwargs))
     
     def __repr__(self):
         """
@@ -378,6 +378,20 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                       fit_threshold_in_mins=fit_threshold_in_mins)
         out_cls.name = name
         return out_cls
+
+
+    @classmethod
+    def default_logan_ref(cls):
+        """
+        Creates a default instance for Logan graphical analysis of ROI TACs with reference region
+        input in a directory using
+        :class:`MultiTACGraphicalAnalysis<petpal.kinetic_modeling.graphical_analysis.MultiTACGraphicalAnalysis>`.
+        All paths are set to empty strings.
+
+        Returns:
+            GraphicalAnalysisStep: A new instance for Logan graphical analysis with reference region.
+        """
+        return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='logan_ref', )
 
 
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
@@ -596,7 +610,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                  output_prefix: str,
                  method: str,
                  fit_threshold_in_mins: float = 30.0,
-                 image_rescale:float=1.0):
+                 **run_kwargs):
         """
         Initializes the ParametricGraphicalAnalysisStep with specified parameters.
 
@@ -607,7 +621,8 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             output_prefix (str): Prefix for the output files.
             method (str): Graphical analysis method.
             fit_threshold_in_mins (float, optional): Threshold in minutes for fitting. Defaults to 30.0
-            image_rescale (float, optional): Image rescale factor. Defaults to 1.0
+            run_kwargs: Additional keyword arguments passed on to
+                GraphicalAnalysisParametricImage.__call__().
         """
         TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, pet4D_img_path=input_image_path,
                                       roi_tacs_dir='', output_directory=output_directory, output_prefix=output_prefix,
@@ -619,7 +634,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                                  init_kwargs=self.init_kwargs,
                                  call_kwargs=dict(method_name=method,
                                                   t_thresh_in_mins=fit_threshold_in_mins,
-                                                  image_scale=image_rescale))
+                                                  **run_kwargs))
         self._input_image_path = input_image_path
     
     def __repr__(self):
@@ -731,7 +746,21 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
                       fit_threshold_in_mins=fit_threshold_in_mins)
         out_cls.name = name
         return out_cls
-    
+
+    @classmethod
+    def default_logan_ref(cls):
+        """
+        Creates a default instance for Logan parametric graphical analysis with reference region
+        using
+        :class:`GraphicalAnalysisParametricImages<petpal.kinetic_modeling.parametric_images.GraphicalAnalysisParametricImage>`.
+        All non-method arguments are set to empty-strings.
+
+        Returns:
+            ParametricGraphicalAnalysisStep: A new instance for Logan parametric graphical analysis
+                with reference region.
+        """
+        return cls(input_tac_path='', input_image_path='', output_directory='', output_prefix='', method='logan_ref')
+
 KMStepType = Union[GraphicalAnalysisStep,
                    TCMFittingAnalysisStep,
                    ParametricGraphicalAnalysisStep,

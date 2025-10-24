@@ -353,7 +353,7 @@ def capitalize_first_char_of_str(input_str: str) -> str:
     return output_str
 
 
-def str_to_pascal_case(input_str) -> str:
+def str_to_camel_case(input_str) -> str:
     """
     Take a string and return the string converted to camel case.
 
@@ -373,5 +373,61 @@ def str_to_pascal_case(input_str) -> str:
     for part in split_str:
         capped_str = capitalize_first(input_str=part)
         capped_split_str += [capped_str]
-    pascal_case_str = ''.join(capped_split_str)
-    return pascal_case_str
+    camel_case_str = ''.join(capped_split_str)
+    return camel_case_str
+
+
+def gen_3d_img_from_timeseries(input_img: ants.ANTsImage) -> ants.ANTsImage:
+    """
+    Get the first frame of a 4D image as a template 3D image with voxel value zero.
+
+    A simplified version of :py:func:`ants.ndimage_to_list.ndimage_to_list`.
+
+    Args:
+        input_img (ants.ANTsImage): The 4D image from which to get the template image.
+
+    Returns:
+        img_3d (ants.ANTsImage): The 3D template of the input image as an ants image.
+    """
+    dimension = input_img.dimension
+    subdimension = dimension - 1
+    suborigin = ants.get_origin( input_img )[0:subdimension]
+    subspacing = ants.get_spacing( input_img )[0:subdimension]
+    subdirection = np.eye( subdimension )
+    for i in range( subdimension ):
+        subdirection[i,:] = ants.get_direction( input_img )[i,0:subdimension]
+    img_shape = input_img.shape[:-1]
+    img_3d = ants.make_image(img_shape)
+    ants.set_spacing( img_3d, subspacing )
+    ants.set_origin( img_3d, suborigin )
+    ants.set_direction( img_3d, subdirection )
+
+    return img_3d
+
+
+def get_frame_from_timeseries(input_img: ants.ANTsImage, frame: int) -> ants.ANTsImage:
+    """
+    Get a single frame of a 4D image as a 3D image.
+
+    A simplified version of :py:func:`ants.ndimage_to_list.ndimage_to_list`.
+
+    Args:
+        input_img (ants.ANTsImage): The 4D image from which to get the frame.
+        frame (int): The index of the frame to extract from the time series image.
+
+    Returns:
+        img_3d (ants.ANTsImage): The 3D first frame of the input image as an ants image.
+    """
+    dimension = input_img.dimension
+    subdimension = dimension - 1
+    suborigin = ants.get_origin( input_img )[0:subdimension]
+    subspacing = ants.get_spacing( input_img )[0:subdimension]
+    subdirection = np.eye( subdimension )
+    for i in range( subdimension ):
+        subdirection[i,:] = ants.get_direction( input_img )[i,0:subdimension]
+    img_3d = ants.slice_image( input_img, axis = subdimension, idx = frame )
+    ants.set_spacing( img_3d, subspacing )
+    ants.set_origin( img_3d, suborigin )
+    ants.set_direction( img_3d, subdirection )
+
+    return img_3d
