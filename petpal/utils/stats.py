@@ -72,12 +72,16 @@ class RegionalStats:
         voxel_arr = region_arr[region_arr_nonzero]
         return voxel_arr
 
-    def get_stats(self, stats_func: Callable, dtype=float) -> dict:
-        """Get stats for all regions. Applies the `stats_func` set in the `__init__`
-        to the `voxel_arr` to return a single value for each region.
+    def get_stats(self, stats_func: Callable, dtype: object=float) -> dict:
+        """Get stats for all regions. Applies `stats_func` to the `voxel_arr` to return a single
+        value for each region. Set `dtype` depending on what type the output is (e.g. float or
+        int).
         
         Args:
-            voxel_arr (np.ndarray): Voxel values in the region of interest.
+            stats_func (Callable): The function to run on each region's voxels. Must take a 1D
+              array as the only required positional argument.
+            dtype (object): The type that `stats_func` returns, if not float. Typically float or
+              int. Default float.
         
         Returns:
             region_stat (float): The statistic for the region of interest.
