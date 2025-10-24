@@ -578,6 +578,18 @@ class LabelMapLoader:
             label_map (dict): The label map loaded from file."""
         return safe_load_meta(input_metadata_file=label_map_path)
 
+    def from_dseg_tsv(self, label_map_path: str) -> dict:
+        r"""
+        Load a label map from a .tsv file.
+
+        Args:
+            label_map_path (str): Path to the label map for use in the PET study.
+
+        Returns:
+            label_map (dict): The label map loaded from file.
+        """
+        pass
+
     def detect_option(self, label_map_option: dict | str) -> Callable:
         """Determine the label map loading method to use based on the provided option.
         
@@ -590,7 +602,10 @@ class LabelMapLoader:
         if isinstance(label_map_option, str):
             label_map_path = pathlib.Path(label_map_option)
             if label_map_path.exists():
-                return self.from_json
+                if label_map_path.suffix == '.json':
+                    return self.from_json
+            elif label_map_path.suffix == '.tsv':
+                return self.from_dseg_tsv
             if label_map_path.suffix!='':
                 raise FileNotFoundError(f'Label map option {label_map_option} looks like a path'
                                         'yet does not exist.')
