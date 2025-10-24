@@ -73,24 +73,27 @@ class RegionalStats:
         return voxel_arr
 
     def get_stats(self, stats_func: Callable, dtype: object=float) -> dict:
-        """Get stats for all regions. Applies `stats_func` to the `voxel_arr` to return a single
+        """Get stats for all regions. Applies `stats_func` to the `voxel_arr` to return a
         value for each region. Set `dtype` depending on what type the output is (e.g. float or
         int).
         
         Args:
             stats_func (Callable): The function to run on each region's voxels. Must take a 1D
-              array as the only required positional argument.
-            dtype (object): The type that `stats_func` returns, if not float. Typically float or
+              array as the only required positional argument and return a value or np.ndarray.
+            dtype (object): The dtype that `stats_func` returns, if not float. Typically float or
               int. Default float.
         
         Returns:
-            region_stat (float): The statistic for the region of interest.
+            region_stats (dict): The statistics for each region of interest.
         """
         region_stats = {}
         for label in self.label_map:
             voxel_arr = self.get_voxels(label=label)
             region_stat = stats_func(voxel_arr)
-            region_stats[label] = dtype(region_stat)
+            if isinstance(region_stat,np.ndarray):
+                region_stats[label] = region_stat.astype(dtype).tolist()
+            else:
+                region_stats[label] = dtype(region_stat)
         return region_stats
 
     @property
