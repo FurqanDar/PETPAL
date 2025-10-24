@@ -162,8 +162,8 @@ class Sgtm:
                           "segmentation to ensure this criteria is met, or use sGTM without "
                           "label map for automated complete region mapping.")
             seg_label_map = LabelMapLoader(label_map_option=self.label_map_option).label_map
-            region_index_map = list(seg_label_map.keys())
-            region_short_names = list(seg_label_map.values())
+            region_index_map = list(seg_label_map.values())
+            region_short_names = list(seg_label_map.keys())
         return (region_index_map, region_short_names)
 
 
