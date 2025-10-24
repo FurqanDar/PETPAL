@@ -593,7 +593,7 @@ class LabelMapLoader:
         out_map_dict = {str_to_camel_case(seg): val for seg, val in
                         zip(label_map_df['abbreviation'], label_map_df['mapping'])}
 
-        return {"Unknown": 0} | out_map_dict
+        return out_map_dict
 
 
     def detect_option(self, label_map_option: dict | str) -> Callable:
