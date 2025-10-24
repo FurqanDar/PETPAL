@@ -11,7 +11,7 @@ import pandas as pd
 from .segmentation_tools import combine_regions_as_mask
 from ..utils import image_io
 from ..utils.scan_timing import ScanTimingInfo
-from ..utils.useful_functions import check_physical_space_for_ants_image_pair
+from ..utils.useful_functions import check_physical_space_for_ants_image_pair, str_to_camel_case
 from ..utils.time_activity_curve import TimeActivityCurve
 from ..meta.label_maps import LabelMapLoader
 
@@ -184,9 +184,9 @@ def write_tacs(input_image_path: str,
                                        uncertainty=tac_uncertainty)
         if out_tac_prefix:
             out_tac_path = os.path.join(out_tac_dir,
-                                        f'{out_tac_prefix}_seg-{str_to_pascal_case(regions_abrev[i])}_tac.tsv')
+                                        f'{out_tac_prefix}_seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
         else:
-            out_tac_path = os.path.join(out_tac_dir, f'seg-{str_to_pascal_case(regions_abrev[i])}_tac.tsv')
+            out_tac_path = os.path.join(out_tac_dir, f'seg-{str_to_camel_case(regions_abrev[i])}_tac.tsv')
         region_tac.to_tsv(filename=out_tac_path)
     if verbose:
         print('Finished writing TACs.')
