@@ -164,8 +164,6 @@ class Sgtm:
             seg_label_map = LabelMapLoader(label_map_option=self.label_map_option).label_map
             region_index_map = list(seg_label_map.values())
             region_short_names = list(seg_label_map.keys())
-        print(region_short_names)
-        print(region_index_map)
         return (region_index_map, region_short_names)
 
 
