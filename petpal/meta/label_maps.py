@@ -5,8 +5,9 @@ This module contains label maps for use in running PETPAL.
 from collections.abc import MutableSequence, Callable
 import pathlib
 from numbers import Integral
-from petpal.utils.image_io import safe_load_meta
-from petpal.utils.useful_functions import str_to_camel_case
+from ..utils.image_io import safe_load_meta
+from ..utils.useful_functions import str_to_camel_case
+from ..utils.image_io import read_label_map_tsv
 
 label_map_freesurfer = {
     'Unknown': 0,
@@ -588,7 +589,12 @@ class LabelMapLoader:
         Returns:
             label_map (dict): The label map loaded from file.
         """
-        pass
+        label_map_df = read_label_map_tsv(label_map_file=label_map_path)
+        out_map_dict = {str_to_camel_case(seg): val for seg, val in
+                        zip(label_map_df['abbreviation'], label_map_df['mapping'])}
+
+        return {"Unknown": 0} | out_map_dict
+
 
     def detect_option(self, label_map_option: dict | str) -> Callable:
         """Determine the label map loading method to use based on the provided option.
@@ -604,8 +610,8 @@ class LabelMapLoader:
             if label_map_path.exists():
                 if label_map_path.suffix == '.json':
                     return self.from_json
-            elif label_map_path.suffix == '.tsv':
-                return self.from_dseg_tsv
+                elif label_map_path.suffix == '.tsv':
+                    return self.from_dseg_tsv
             if label_map_path.suffix!='':
                 raise FileNotFoundError(f'Label map option {label_map_option} looks like a path'
                                         'yet does not exist.')
