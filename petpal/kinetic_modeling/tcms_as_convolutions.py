@@ -518,3 +518,11 @@ def get_frame_index_pairs_from_fine_times(fine_times: np.ndarray,
     return np.asarray([start_idx, end_idx]).T
 
 
+@numba.njit(fastmath=True, cache=True)
+def get_frame_averaged_tac_vals(tac_vals: np.ndarray, frame_idx_pairs: np.ndarray) -> np.ndarray:
+    avg_tac_vals = np.zeros(len(frame_idx_pairs))
+    for frame_id, (start, end) in enumerate(frame_idx_pairs):
+        avg_tac_vals[frame_id] = np.mean(tac_vals[start:end])
+    return avg_tac_vals
+
+
