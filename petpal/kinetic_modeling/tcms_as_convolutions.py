@@ -19,6 +19,8 @@ import numpy as np
 from scipy.signal import convolve as sp_conv
 import lmfit
 
+from ..utils.time_activity_curve import get_frame_averaged_tac_vals
+
 
 def calc_convolution_with_check(f: np.ndarray, g: np.ndarray, dt: float) -> np.ndarray:
     r"""Performs a discrete convolution of two arrays, assumed to represent time-series data. Checks if the arrays are
@@ -508,22 +510,6 @@ def gen_tac_2tcm_cpet_from_tac(tac_times: np.ndarray,
     c_pet = (1.0 - vb) * (c_1 + c_2) + vb * tac_vals
 
     return [tac_times, c_pet]
-
-
-def get_frame_index_pairs_from_fine_times(fine_times: np.ndarray,
-                                          frame_starts: np.ndarray,
-                                          frame_ends: np.ndarray) -> np.ndarray:
-    start_idx = np.searchsorted(fine_times, frame_starts)
-    end_idx = np.searchsorted(fine_times, frame_ends)
-    return np.asarray([start_idx, end_idx]).T
-
-
-@numba.njit(fastmath=True, cache=True)
-def get_frame_averaged_tac_vals(tac_vals: np.ndarray, frame_idx_pairs: np.ndarray) -> np.ndarray:
-    avg_tac_vals = np.zeros(len(frame_idx_pairs))
-    for frame_id, (start, end) in enumerate(frame_idx_pairs):
-        avg_tac_vals[frame_id] = np.mean(tac_vals[start:end])
-    return avg_tac_vals
 
 
 def model_serial_1tcm_frame_avgd(params: lmfit.Parameters,
