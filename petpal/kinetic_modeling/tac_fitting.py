@@ -23,6 +23,7 @@ See Also:
 import inspect
 import json
 import os
+import warnings
 from typing import Callable, Union
 import numpy as np
 from scipy.optimize import curve_fit as sp_cv_fit
@@ -1137,7 +1138,7 @@ class FrameAveragedTACFitter():
                  scan_info: ScanTimingInfo,
                  tcm_model_func: Callable = pet_tcms.model_serial_2tcm_frame_avgd,
                  fit_bounds: None | np.ndarray = None,
-                 tac_weights: None | np.ndarray | str = None,
+                 fit_weights: None | np.ndarray | str = None,
                  tac_resample_num: int = 8192,
                  **leastsq_kwargs):
         self._validate_inputs(input_tac=input_tac, roi_tac=roi_tac,
@@ -1167,6 +1168,20 @@ class FrameAveragedTACFitter():
         self.frame_idx_pairs = get_frame_index_pairs_from_fine_times(fine_times=self.fine_roi_tac.times_in_mins,
                                                                      frame_starts=self.frame_starts,
                                                                      frame_ends=self.frame_ends)
+        self.fit_weights = self._setup_weights(fit_weights=fit_weights)
+
+        self._fit_obj = lmfit.Minimizer(userfcn=self.tcm_model_func,
+                                        params=self.tcm_fit_params,
+                                        fcn_args=(*self.fine_input_tac.tac,
+                                                  self.frame_idx_pairs,
+                                                  self.roi_tac.activity,
+                                                  self.fit_weights))
+        self.result_obj: None | lmfit.minimizer.MinimizerResult = None
+        self.fit_results: None | tuple[np.ndarray, np.ndarray] = None
+        self.fit_residuals: None | np.ndarray = None
+        self.fit_tac: None | TimeActivityCurve = None
+        self.fit_sum_of_square_residuals: None | np.ndarray = None
+
 
     def _validate_inputs(self,
                          input_tac: TimeActivityCurve,
@@ -1208,3 +1223,22 @@ class FrameAveragedTACFitter():
                            self.bounds_lo,
                            self.bounds_hi)}
         return lmfit.create_params(**params_dict)
+
+    def _setup_weights(self, fit_weights: np.ndarray | str | None) -> np.ndarray | None:
+        if fit_weights is None:
+            return None
+        elif isinstance(fit_weights, str):
+            normalized = fit_weights.lower().replace(" ", "_").replace("-", "_")
+            if normalized in {'roi', 'roi_tac', 'tac_err', 'stderr'}:
+                    return self.roi_tac.uncertainty
+            warnings.warn(
+                    f"Unrecognized fit_weights='{fit_weights}'. "
+                    f"Valid options: 'roi', 'roi_tac', 'tac_err', 'stderr'. "
+                    f"Setting weights to None.",
+                    stacklevel=2
+                    )
+            return None
+        else:
+            cleaned_weights = fit_weights.copy()
+            cleaned_weights[cleaned_weights == 0] = np.inf
+            return cleaned_weights
