@@ -1092,7 +1092,42 @@ class MultiTACTCMAnalsyis(TCMAnalysis, MultiTACAnalysisMixin):
                 json.dump(obj=fit_props, fp=f, indent=4)
 
 
+class TCMModelConfigurations:
+    def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray):
+        self.func = func
+        self.param_names = param_names
+        self.default_bounds = default_bounds
+        self.num_params = len(param_names)
+
+
+_FRAME_AVGD_TCM_CONFIGS = {
+    pet_tcms.model_serial_1tcm_frame_avgd: TCMModelConfigurations(
+            func=pet_tcms.model_serial_1tcm_frame_avgd,
+            param_names=['k1', 'k2', 'vb'],
+            default_bounds=np.array([
+                [0.2, 1e-8, 0.5],  # k1
+                [0.1, 1e-8, 0.5],  # k2
+                [0.05, 1e-8, 0.5]  # vb
+                ])
+            ),
+    pet_tcms.model_serial_2tcm_frame_avgd: TCMModelConfigurations(
+            func=pet_tcms.model_serial_2tcm_frame_avgd,
+            param_names=['k1', 'k2', 'k3', 'k4', 'vb'],
+            default_bounds=np.array([
+                [0.2, 1e-8, 0.5],  # k1
+                [0.1, 1e-8, 0.5],  # k2
+                [0.1, 1e-8, 0.5],  # k3
+                [0.01, 1e-8, 0.1], # k4
+                [0.05, 1e-8, 0.5]  # vb
+                ])
+            )
+    }
+
+
 class FrameAveragedTACFitter():
+
+    SUPPORTED_MODELS = frozenset(_FRAME_AVGD_TCM_CONFIGS.keys())
+
     def __init__(self,
                  input_tac: TimeActivityCurve,
                  roi_tac: TimeActivityCurve,
@@ -1102,12 +1137,8 @@ class FrameAveragedTACFitter():
                  tac_weights: None | np.ndarray | str = None,
                  tac_resample_num: int = 8192,
                  **leastsq_kwargs):
-        assert isinstance(input_tac, TimeActivityCurve), "Input TAC must be a TimeActivityCurve object."
-        assert isinstance(roi_tac, TimeActivityCurve), "ROI TAC must be a TimeActivityCurve object."
-        assert isinstance(scan_info, ScanTimingInfo), "Scan timing information must be a ScanTimingInfo object."
-        if tcm_model_func not in [pet_tcms.model_serial_1tcm_frame_avgd, pet_tcms.model_serial_2tcm_frame_avgd]:
-            raise ValueError("The passed in TCM model function is not one of "
-                             "`pet_tcms.model_serial_1tcm_frame_avgd` or `pet_tcms.model_serial_2tcm_frame_avgd`")
+        self._validate_inputs(input_tac=input_tac, roi_tac=roi_tac,
+                              scan_info=scan_info, tcm_model_func=tcm_model_func, )
 
         self.input_tac = TimeActivityCurve(*input_tac.tac_werr)
         self.roi_tac = TimeActivityCurve(*roi_tac.tac_werr)
@@ -1118,12 +1149,31 @@ class FrameAveragedTACFitter():
         self.frame_starts = scan_info.start_in_mins
         self.frame_ends = scan_info.end_in_mins
 
+        self.model_config = _FRAME_AVGD_TCM_CONFIGS[tcm_model_func]
         self.tcm_model_func = tcm_model_func
 
         self.bounds = self.gen_bounds(fit_bounds=fit_bounds)
         self.initial_guesses = self.bounds[:, 0]
         self.bounds_lo = self.bounds[:, 1]
         self.bounds_hi = self.bounds[:, 2]
+
+    def _validate_inputs(self,
+                         input_tac: TimeActivityCurve,
+                         roi_tac: TimeActivityCurve,
+                         scan_info: ScanTimingInfo,
+                         tcm_model_func: Callable):
+        assert isinstance(input_tac, TimeActivityCurve), \
+            "Input TAC must be a TimeActivityCurve object."
+        assert isinstance(roi_tac, TimeActivityCurve), \
+            "ROI TAC must be a TimeActivityCurve object."
+        assert isinstance(scan_info, ScanTimingInfo), \
+            "Scan timing information must be a ScanTimingInfo object."
+
+        if tcm_model_func not in self.SUPPORTED_MODELS:
+            raise ValueError(
+                    f"tcm_model_func must be one of: "
+                    f"{', '.join(f.__name__ for f in self.SUPPORTED_MODELS)}"
+                    )
 
     def gen_bounds(self, fit_bounds: np.ndarray | None = None):
         if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
