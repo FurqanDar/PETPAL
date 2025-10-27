@@ -526,3 +526,51 @@ def get_frame_averaged_tac_vals(tac_vals: np.ndarray, frame_idx_pairs: np.ndarra
     return avg_tac_vals
 
 
+def model_serial_1tcm_frame_avgd(params: lmfit.Parameters,
+                                 cp_times: np.ndarray,
+                                 cp_vals: np.ndarray,
+                                 frame_idx_pairs: np.ndarray,
+                                 data: np.ndarray | None = None,
+                                 eps: np.ndarray | float | None = None) -> np.ndarray:
+    par_vals = params.valuesdict()
+    model = gen_tac_1tcm_cpet_from_tac(tac_times=cp_times,
+                                       tac_vals=cp_vals,
+                                       k1=par_vals['k1'],
+                                       k2=par_vals['k2'],
+                                       vb=par_vals['vb'])[-1]
+
+    model = get_frame_averaged_tac_vals(tac_vals=model, frame_idx_pairs=frame_idx_pairs)
+    if data is None:
+        return model
+    else:
+        diff = model - data
+        if eps is None:
+            return diff
+        else:
+            return diff / eps
+
+
+def model_serial_2tcm_frame_avgd(params: lmfit.Parameters,
+                                 cp_times: np.ndarray,
+                                 cp_vals: np.ndarray,
+                                 frame_idx_pairs: np.ndarray,
+                                 data: np.ndarray | None = None,
+                                 eps: np.ndarray | float | None = None) -> np.ndarray:
+    par_vals = params.valuesdict()
+    model = gen_tac_2tcm_cpet_from_tac(tac_times=cp_times,
+                                       tac_vals=cp_vals,
+                                       k1=par_vals['k1'],
+                                       k2=par_vals['k2'],
+                                       k3=par_vals['k3'],
+                                       k4=par_vals['k4'],
+                                       vb=par_vals['vb'])[-1]
+
+    model = get_frame_averaged_tac_vals(tac_vals=model, frame_idx_pairs=frame_idx_pairs)
+    if data is None:
+        return model
+    else:
+        diff = model - data
+        if eps is None:
+            return diff
+        else:
+            return diff / eps
