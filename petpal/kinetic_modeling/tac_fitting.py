@@ -1176,11 +1176,12 @@ class FrameAveragedTACFitter():
                                                   self.frame_idx_pairs,
                                                   self.roi_tac.activity,
                                                   self.fit_weights))
+        self.leastsq_kwargs = leastsq_kwargs
         self.result_obj: None | lmfit.minimizer.MinimizerResult = None
         self.fit_results: None | tuple[np.ndarray, np.ndarray] = None
         self.fit_residuals: None | np.ndarray = None
-        self.fit_tac: None | TimeActivityCurve = None
         self.fit_sum_of_square_residuals: None | np.ndarray = None
+        self.fit_tac: None | TimeActivityCurve = None
 
 
     def _validate_inputs(self,
@@ -1242,3 +1243,19 @@ class FrameAveragedTACFitter():
             cleaned_weights = fit_weights.copy()
             cleaned_weights[cleaned_weights == 0] = np.inf
             return cleaned_weights
+
+    def run_fit(self) -> None:
+        self._fit_obj.leastsq(**self.leastsq_kwargs)
+        self.result_obj = self._fit_obj.result
+
+        _fit_vals = np.asarray([val.value for _, val in self.result_obj.params.items()])
+        self.fit_results = _fit_vals, self.result_obj.covar
+
+        self.fit_residuals = self.result_obj.residual.copy()
+        self.fit_sum_of_square_residuals = np.sum(self.fit_residuals ** 2)
+
+        _fit_tac_activity = self.tcm_model_func(self.result_obj.params, *self.fine_input_tac.tac, self.frame_idx_pairs)
+        self.fit_tac = TimeActivityCurve(self.roi_tac.times_in_mins, _fit_tac_activity)
+
+    def __call__(self):
+        self.run_fit()
