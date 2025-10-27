@@ -26,6 +26,7 @@ import os
 from typing import Callable, Union
 import numpy as np
 from scipy.optimize import curve_fit as sp_cv_fit
+import lmfit
 
 from . import tcms_as_convolutions as pet_tcms
 from ..input_function import blood_input as pet_bld
@@ -1120,7 +1121,9 @@ class FrameAveragedTACFitter():
         self.tcm_model_func = tcm_model_func
 
         self.bounds = self.gen_bounds(fit_bounds=fit_bounds)
-
+        self.initial_guesses = self.bounds[:, 0]
+        self.bounds_lo = self.bounds[:, 1]
+        self.bounds_hi = self.bounds[:, 2]
 
     def gen_bounds(self, fit_bounds: np.ndarray | None = None):
         if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
@@ -1152,3 +1155,16 @@ class FrameAveragedTACFitter():
                 return bounds
         else:
             raise NotImplementedError("Bounds generations not implemented for the passed in TCM model.")
+
+    def gen_fit_params(self):
+        if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
+            param_names = ['k1', 'k2', 'k3', 'k4', 'vb']
+        elif self.tcm_model_func is pet_tcms.model_serial_1tcm_frame_avgd:
+            param_names = ['k1', 'k2', 'vb']
+        else:
+            raise NotImplementedError("Bounds generations not implemented for the passed in TCM model.")
+
+        params_dict = {name: {'vary': True, 'value': par_init, "min": par_min, "max": par_max} for
+                       name, par_init, par_min, par_max in
+                       zip(param_names, self.initial_guesses, self.bounds_lo, self.bounds_hi)}
+        return lmfit.create_params(**params_dict)
