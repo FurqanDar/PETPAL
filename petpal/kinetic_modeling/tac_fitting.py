@@ -26,10 +26,11 @@ import os
 from typing import Callable, Union
 import numpy as np
 from scipy.optimize import curve_fit as sp_cv_fit
+
 from . import tcms_as_convolutions as pet_tcms
 from ..input_function import blood_input as pet_bld
-from ..utils.time_activity_curve import safe_load_tac
-from ..utils.time_activity_curve import MultiTACAnalysisMixin
+from ..utils.time_activity_curve import TimeActivityCurve, safe_load_tac, MultiTACAnalysisMixin
+from ..utils.scan_timing import ScanTimingInfo
 
 def _get_fitting_params_for_tcm_func(f: Callable) -> list:
     r"""
@@ -1088,4 +1089,66 @@ class MultiTACTCMAnalsyis(TCMAnalysis, MultiTACAnalysisMixin):
             
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(obj=fit_props, fp=f, indent=4)
-            
+
+
+class FrameAveragedTACFitter():
+    def __init__(self,
+                 input_tac: TimeActivityCurve,
+                 roi_tac: TimeActivityCurve,
+                 scan_info: ScanTimingInfo,
+                 tcm_model_func: Callable = pet_tcms.model_serial_2tcm_frame_avgd,
+                 fit_bounds: None | np.ndarray = None,
+                 tac_weights: None | np.ndarray | str = None,
+                 tac_resample_num: int = 8192,
+                 **leastsq_kwargs):
+        assert isinstance(input_tac, TimeActivityCurve), "Input TAC must be a TimeActivityCurve object."
+        assert isinstance(roi_tac, TimeActivityCurve), "ROI TAC must be a TimeActivityCurve object."
+        assert isinstance(scan_info, ScanTimingInfo), "Scan timing information must be a ScanTimingInfo object."
+        if tcm_model_func not in [pet_tcms.model_serial_1tcm_frame_avgd, pet_tcms.model_serial_2tcm_frame_avgd]:
+            raise ValueError("The passed in TCM model function is not one of "
+                             "`pet_tcms.model_serial_1tcm_frame_avgd` or `pet_tcms.model_serial_2tcm_frame_avgd`")
+
+        self.input_tac = TimeActivityCurve(*input_tac.tac_werr)
+        self.roi_tac = TimeActivityCurve(*roi_tac.tac_werr)
+        self.roi_has_err = False if np.all(self.roi_tac.uncertainty == np.nan) else True
+        self.roi_tac.uncertainty[self.roi_tac.uncertainty == 0] = np.inf
+
+        self.frame_durations = scan_info.duration_in_mins
+        self.frame_starts = scan_info.start_in_mins
+        self.frame_ends = scan_info.end_in_mins
+
+        self.tcm_model_func = tcm_model_func
+
+        self.bounds = self.gen_bounds(fit_bounds=fit_bounds)
+
+
+    def gen_bounds(self, fit_bounds: np.ndarray | None = None):
+        if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
+            if fit_bounds is not None:
+                assert fit_bounds.shape == (5, 3), ("Fit bounds has the wrong shape. For each potential"
+                                                    " fitting parameter in `model_tcm_func`, we require the "
+                                                    "tuple: `(initial, lower, upper)`. We need a tuple for "
+                                                    "K1, k2, k3, k4, and vb.")
+                return fit_bounds
+            else:
+                bounds = np.zeros((5, 3), float)
+                bounds[0, :] = (0.2, 1e-8, 0.5)
+                bounds[1, :] = (0.1, 1e-8, 0.5)
+                bounds[2, :] = (0.1, 1e-8, 0.5)
+                bounds[3, :] = (0.01, 1e-8, 0.1)
+                bounds[4, :] = (0.05, 1e-8, 0.5)
+                return bounds
+        elif self.tcm_model_func is pet_tcms.model_serial_1tcm_frame_avgd:
+            if fit_bounds is not None:
+                assert fit_bounds.shape == (3, 3), ("Fit bounds has the wrong shape. For each potential"
+                                                    " fitting parameter in `model_tcm_func`, we require the "
+                                                    "tuple: `(initial, lower, upper)`. We need a tuple for "
+                                                    "K1, k2, and vb.")
+            else:
+                bounds = np.zeros((3, 3), float)
+                bounds[0, :] = (0.2, 1e-8, 0.5)
+                bounds[1, :] = (0.1, 1e-8, 0.5)
+                bounds[2, :] = (0.05, 1e-8, 0.5)
+                return bounds
+        else:
+            raise NotImplementedError("Bounds generations not implemented for the passed in TCM model.")
