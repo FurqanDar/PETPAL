@@ -1189,12 +1189,9 @@ class FrameAveragedTACFitter():
                          roi_tac: TimeActivityCurve,
                          scan_info: ScanTimingInfo,
                          tcm_model_func: Callable):
-        assert isinstance(input_tac, TimeActivityCurve), \
-            "Input TAC must be a TimeActivityCurve object."
-        assert isinstance(roi_tac, TimeActivityCurve), \
-            "ROI TAC must be a TimeActivityCurve object."
-        assert isinstance(scan_info, ScanTimingInfo), \
-            "Scan timing information must be a ScanTimingInfo object."
+        assert isinstance(input_tac, TimeActivityCurve), "Input TAC must be a TimeActivityCurve object."
+        assert isinstance(roi_tac, TimeActivityCurve), "ROI TAC must be a TimeActivityCurve object."
+        assert isinstance(scan_info, ScanTimingInfo), "Scan timing information must be a ScanTimingInfo object."
 
         if tcm_model_func not in self.SUPPORTED_MODELS:
             raise ValueError(
