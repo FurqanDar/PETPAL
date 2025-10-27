@@ -1,7 +1,7 @@
 # Positron Emission Tomography Processing and Analysis Library (PETPAL)
 
 <figure>
-<img src="/docs/PETPAL_logo.png" alt="PETPAL Logo" width="50%">
+<img src="docs/PETPAL_Logo.png" alt="PETPAL Logo" width="50%">
 <figcaption>A comprehensive 4D-PET/MR analysis software suite.</figcaption>
 </figure>
 
