@@ -30,7 +30,10 @@ import lmfit
 
 from . import tcms_as_convolutions as pet_tcms
 from ..input_function import blood_input as pet_bld
-from ..utils.time_activity_curve import TimeActivityCurve, safe_load_tac, MultiTACAnalysisMixin
+from ..utils.time_activity_curve import (TimeActivityCurve,
+                                         safe_load_tac,
+                                         MultiTACAnalysisMixin,
+                                         get_frame_index_pairs_from_fine_times)
 from ..utils.scan_timing import ScanTimingInfo
 
 def _get_fitting_params_for_tcm_func(f: Callable) -> list:
@@ -1142,7 +1145,7 @@ class FrameAveragedTACFitter():
 
         self.input_tac = TimeActivityCurve(*input_tac.tac_werr)
         self.roi_tac = TimeActivityCurve(*roi_tac.tac_werr)
-        self.roi_has_err = False if np.all(self.roi_tac.uncertainty == np.nan) else True
+        self.roi_has_err = not np.all(self.roi_tac.uncertainty == np.nan)
         self.roi_tac.uncertainty[self.roi_tac.uncertainty == 0] = np.inf
 
         self.frame_durations = scan_info.duration_in_mins
@@ -1152,10 +1155,18 @@ class FrameAveragedTACFitter():
         self.model_config = _FRAME_AVGD_TCM_CONFIGS[tcm_model_func]
         self.tcm_model_func = tcm_model_func
 
-        self.bounds = self.gen_bounds(fit_bounds=fit_bounds)
+        self.bounds = self._setup_bounds(fit_bounds=fit_bounds)
         self.initial_guesses = self.bounds[:, 0]
         self.bounds_lo = self.bounds[:, 1]
         self.bounds_hi = self.bounds[:, 2]
+        self.tcm_fit_params = self.gen_fit_params()
+
+        self.tac_resample_num = tac_resample_num
+        self.fine_roi_tac = self.roi_tac.evenly_resampled_tac(self.tac_resample_num)
+        self.fine_input_tac = self.input_tac.resampled_tac_on_times(self.fine_roi_tac.times_in_mins)
+        self.frame_idx_pairs = get_frame_index_pairs_from_fine_times(fine_times=self.fine_roi_tac.times_in_mins,
+                                                                     frame_starts=self.frame_starts,
+                                                                     frame_ends=self.frame_ends)
 
     def _validate_inputs(self,
                          input_tac: TimeActivityCurve,
@@ -1175,46 +1186,25 @@ class FrameAveragedTACFitter():
                     f"{', '.join(f.__name__ for f in self.SUPPORTED_MODELS)}"
                     )
 
-    def gen_bounds(self, fit_bounds: np.ndarray | None = None):
-        if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
-            if fit_bounds is not None:
-                assert fit_bounds.shape == (5, 3), ("Fit bounds has the wrong shape. For each potential"
-                                                    " fitting parameter in `model_tcm_func`, we require the "
-                                                    "tuple: `(initial, lower, upper)`. We need a tuple for "
-                                                    "K1, k2, k3, k4, and vb.")
-                return fit_bounds
-            else:
-                bounds = np.zeros((5, 3), float)
-                bounds[0, :] = (0.2, 1e-8, 0.5)
-                bounds[1, :] = (0.1, 1e-8, 0.5)
-                bounds[2, :] = (0.1, 1e-8, 0.5)
-                bounds[3, :] = (0.01, 1e-8, 0.1)
-                bounds[4, :] = (0.05, 1e-8, 0.5)
-                return bounds
-        elif self.tcm_model_func is pet_tcms.model_serial_1tcm_frame_avgd:
-            if fit_bounds is not None:
-                assert fit_bounds.shape == (3, 3), ("Fit bounds has the wrong shape. For each potential"
-                                                    " fitting parameter in `model_tcm_func`, we require the "
-                                                    "tuple: `(initial, lower, upper)`. We need a tuple for "
-                                                    "K1, k2, and vb.")
-            else:
-                bounds = np.zeros((3, 3), float)
-                bounds[0, :] = (0.2, 1e-8, 0.5)
-                bounds[1, :] = (0.1, 1e-8, 0.5)
-                bounds[2, :] = (0.05, 1e-8, 0.5)
-                return bounds
-        else:
-            raise NotImplementedError("Bounds generations not implemented for the passed in TCM model.")
+    def _setup_bounds(self, fit_bounds: np.ndarray | None) -> np.ndarray:
+        expected_shape = (self.model_config.num_params, 3)
+
+        if fit_bounds is not None:
+            if fit_bounds.shape != expected_shape:
+                raise ValueError(
+                        f"fit_bounds has wrong shape {fit_bounds.shape}. "
+                        f"Expected {expected_shape} for parameters: "
+                        f"{', '.join(self.model_config.param_names)}"
+                        )
+            return fit_bounds.copy()
+
+        return self.model_config.default_bounds.copy()
 
     def gen_fit_params(self):
-        if self.tcm_model_func is pet_tcms.model_serial_2tcm_frame_avgd:
-            param_names = ['k1', 'k2', 'k3', 'k4', 'vb']
-        elif self.tcm_model_func is pet_tcms.model_serial_1tcm_frame_avgd:
-            param_names = ['k1', 'k2', 'vb']
-        else:
-            raise NotImplementedError("Bounds generations not implemented for the passed in TCM model.")
-
-        params_dict = {name: {'vary': True, 'value': par_init, "min": par_min, "max": par_max} for
-                       name, par_init, par_min, par_max in
-                       zip(param_names, self.initial_guesses, self.bounds_lo, self.bounds_hi)}
+        params_dict = {name: {'vary': True, 'value': guess, "min": min, "max": max} for
+                       name, guess, min, max in
+                       zip(self.model_config.param_names,
+                           self.initial_guesses,
+                           self.bounds_lo,
+                           self.bounds_hi)}
         return lmfit.create_params(**params_dict)
