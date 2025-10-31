@@ -228,6 +228,12 @@ def _generate_args() -> argparse.ArgumentParser:
                             '--label-map',
                             required=True,
                             help='Label map for the seg image, either a preset option or path to a json file')
+    parser_tac.add_argument('-x',
+                            '--excel',
+                            action='store_true',
+                            required=False,
+                            default=False,
+                            help='Option to store results as a single file table instead of one TAC file per region.')
 
     parser_oldtac = subparsers.add_parser('write-tacs-old',
                                        help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks.')
@@ -372,6 +378,14 @@ def main():
                                            segmentation_image_path=args.segmentation,
                                            label_map_path=args.label_map_path,
                                            verbose=True)
+
+    if command=='write_tacs':
+        tac_obj = regional_tac_extraction.WriteRegionalTacs(input_image_path=args.input_img,
+                                                  segmentation_path=args.segmentation,
+                                                  label_map=args.label_map)
+        tac_obj(out_tac_prefix=args.patid,
+                out_tac_dir=args.out_tac_path,
+                one_tsv_per_region=not args.excel)
 
     if command=='warp_pet_atlas':
         register.warp_pet_atlas(input_image_path=args.input_img,
