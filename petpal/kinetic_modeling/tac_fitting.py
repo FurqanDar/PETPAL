@@ -1104,6 +1104,26 @@ class TCMModelConfigurations:
         self.default_bounds = default_bounds
         self.num_params = len(param_names)
 
+    _NAME_TO_FUNC: dict[str, Callable] = {'1tcm': pet_tcms.model_serial_1tcm_frame_avgd,
+                                          'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd}
+
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        return name.lower().replace(' ', '_').replace('_', '-')
+
+    @classmethod
+    def valid_model_names(cls) -> list[str]:
+        return sorted(set(cls._NAME_TO_FUNC.keys()))
+
+    @classmethod
+    def resolve_model_name(cls, model_name: str) -> Callable:
+        norm_name = cls.normalize_name(model_name)
+        try:
+            return cls._NAME_TO_FUNC[norm_name]
+        except KeyError as err:
+            valid_model_names = "', '".join(cls.valid_model_names())
+            raise ValueError(f"Unknown compartment model '{model_name}'. Valid options: '{valid_model_names}'") from err
+
 
 _FRAME_AVGD_TCM_CONFIGS = {
     pet_tcms.model_serial_1tcm_frame_avgd: TCMModelConfigurations(
@@ -1297,20 +1317,13 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis):
 
     @staticmethod
     def validated_tcm(compartment_model: str) -> str:
-        tcm = compartment_model.lower().replace(' ', '-')
-        tcm = tcm.replace('_', '-')
-        if tcm not in ['serial-2tcm', '1tcm']:
-            raise ValueError("compartment_model must be 'serial-2tcm'")
-        return tcm
+        normalized = TCMModelConfigurations.normalize_name(compartment_model)
+        TCMModelConfigurations.resolve_model_name(normalized)
+        return normalized
 
     @staticmethod
     def _get_tcm_function(compartment_model: str) -> Callable:
-        tcm_funcs = {
-            '1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
-            'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd
-            }
-
-        return tcm_funcs[compartment_model]
+        return TCMModelConfigurations.resolve_model_name(compartment_model)
 
 
     def calculate_fit(self):
