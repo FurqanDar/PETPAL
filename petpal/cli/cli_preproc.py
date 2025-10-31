@@ -87,10 +87,9 @@ See Also:
 import argparse
 import ants
 
-import petpal.preproc.regional_tac_extraction
 
 from ..utils import useful_functions
-from ..preproc import image_operations_4d, motion_corr, register
+from ..preproc import image_operations_4d, motion_corr, register, regional_tac_extraction
 
 
 _PREPROC_EXAMPLES_ = r"""
@@ -349,11 +348,11 @@ def main():
                               half_life=args.half_life)
 
     if command=='write_tacs':
-        petpal.preproc.regional_tac_extraction.write_tacs(input_image_path=args.input_img,
-                                                          out_tac_dir=args.out_tac_dir,
-                                                          segmentation_image_path=args.segmentation,
-                                                          label_map_path=args.label_map_path,
-                                                          verbose=True)
+        regional_tac_extraction.write_tacs(input_image_path=args.input_img,
+                                           out_tac_dir=args.out_tac_dir,
+                                           segmentation_image_path=args.segmentation,
+                                           label_map_path=args.label_map_path,
+                                           verbose=True)
 
     if command=='warp_pet_atlas':
         register.warp_pet_atlas(input_image_path=args.input_img,
