@@ -930,7 +930,7 @@ class TCMAnalysis(object):
                   TACFitterWithBloodVolume, the last parameter will be named 'vb', others 'k_i'.
                   In the case of TACFitterWithoutBloodVolume, parameters will be named 'k_i'.
         """
-        if isinstance(self.fitting_obj, TACFitterWithoutBloodVolume):
+        if self.ignore_blood_volume:
             k_vals = {f'k_{n + 1}': val for n, val in enumerate(results)}
             return k_vals
         else:
