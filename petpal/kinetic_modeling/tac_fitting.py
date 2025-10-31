@@ -26,6 +26,7 @@ import os
 import warnings
 from typing import Callable, Union
 import numpy as np
+import pandas as pd
 from scipy.optimize import curve_fit as sp_cv_fit
 import lmfit
 
@@ -1256,3 +1257,164 @@ class FrameAveragedTACFitter():
 
     def __call__(self):
         self.run_fit()
+
+
+class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis, FrameAveragedTACFitter):
+    def __init__(self,
+                 input_tac_path: str,
+                 roi_tacs_dir: str,
+                 output_directory: str,
+                 output_filename_prefix: str,
+                 compartment_model: str,
+                 image_metadata_path: str,
+                 parameter_bounds: None | np.ndarray = None,
+                 weights: float | None | np.ndarray = None,
+                 resample_num: int = 4096,
+                 aif_fit_thresh_in_mins: float = 40.0,
+                 max_func_iters: int = 2500,
+                 ignore_blood_volume: bool = False):
+        super().__init__(input_tac_path=input_tac_path,
+                         roi_tacs_dir=roi_tacs_dir,
+                         output_directory=output_directory,
+                         output_filename_prefix=output_filename_prefix,
+                         compartment_model=compartment_model,
+                         parameter_bounds=parameter_bounds,
+                         weights=weights,
+                         resample_num=resample_num,
+                         aif_fit_thresh_in_mins=aif_fit_thresh_in_mins,
+                         max_func_iters=max_func_iters,
+                         ignore_blood_volume=ignore_blood_volume)
+        self.resample_number = resample_num
+        self.fitting_obj = FrameAveragedTACFitter
+        self.image_metadata_path = os.path.abspath(image_metadata_path)
+        self.scan_info = ScanTimingInfo.from_nifti(self.image_metadata_path)
+        self.fit_tacs: list[TimeActivityCurve] = []
+        self.update_analysis_props()
+
+    def update_analysis_props(self):
+        for tac_id, a_prop_dict in enumerate(self.analysis_props):
+            a_prop_dict['FilePathImageOrMetadata'] = self.image_metadata_path
+
+    @staticmethod
+    def validated_tcm(compartment_model: str) -> str:
+        tcm = compartment_model.lower().replace(' ', '-')
+        tcm = tcm.replace('_', '-')
+        if tcm not in ['serial-2tcm', '1tcm']:
+            raise ValueError("compartment_model must be 'serial-2tcm'")
+        return tcm
+
+    @staticmethod
+    def _get_tcm_function(compartment_model: str) -> Callable:
+        tcm_funcs = {
+            '1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
+            'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd
+            }
+
+        return tcm_funcs[compartment_model]
+
+
+    def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
+        assert self.tcm_func is not None, "This method should be run after `get_tcm_func_properties`"
+        if fit_bounds is not None:
+            assert fit_bounds.shape == (5, 3), ("Fit bounds has the wrong shape. For each potential"
+                                                " fitting parameter in `tcm_func`, we require the "
+                                                "tuple: `(initial, lower, upper)`.")
+            self.bounds = fit_bounds.copy()
+        else:
+            bounds = np.zeros((5, 3), float)
+            for pid, _param in enumerate(bounds[:-1]):
+                bounds[pid] = [0.1/(pid+1), 1.0e-8, 5.0/(pid+1)]
+            bounds[-1] = [0.1, 0.0, 1.0]
+            self.bounds = bounds.copy()
+
+        self.initial_guesses = self.bounds[:, 0]
+        self.bounds_lo = self.bounds[:, 1]
+        self.bounds_hi = self.bounds[:, 2]
+
+    def calculate_fit(self):
+        p_tac = TimeActivityCurve.from_tsv(self.input_tac_path)
+        fit_obj = None
+        for tac_id, a_tac in enumerate(self.tacs_files_list):
+            t_tac = TimeActivityCurve.from_tsv(a_tac)
+            fit_obj = self.fitting_obj(input_tac=p_tac,
+                                       roi_tac=t_tac,
+                                       scan_info=self.scan_info,
+                                       tcm_func=tcm_2tcm_frame_avgd,
+                                       resample_number=self.resample_number,
+                                       )
+            fit_obj.run_fit()
+            self.fit_results.append(fit_obj.fit_results)
+            self.lm_fits.append(fit_obj.result_obj)
+            self.fit_tacs.append(fit_obj.fit_tac)
+            self.analysis_props[tac_id]['FitProperties']['Sum Of Squared Residuals'] = fit_obj.fit_sum_of_square_residuals
+        if (self.bounds is None) and (fit_obj is not None):
+            self.bounds = fit_obj.bounds
+
+    def _generate_pretty_params(self, results: np.ndarray) -> dict:
+        k_vals = {f'k_{n + 1}': val for n, val in enumerate(results[:-1])}
+        vb = {'vb': results[-1]}
+        return {**k_vals, **vb}
+
+    def update_props_with_formatted_fit_values(self, fit_results, fit_props_dict: dict):
+        fit_params, fit_covariances = fit_results
+        try:
+            fit_stderr = np.sqrt(np.diagonal(fit_covariances))
+        except ValueError:
+            fit_stderr = np.nan * np.ones(5)
+        format_func = self._generate_pretty_params
+
+        fit_props_dict["FitProperties"]["FitValues"] = format_func(fit_params.round(5))
+        fit_props_dict["FitProperties"]["FitStdErr"] = format_func(fit_stderr.round(5))
+
+        format_func = self._generate_pretty_bounds
+        fit_props_dict["FitProperties"]["Bounds"] = format_func(self.bounds.round(5))
+
+    def save_analysis(self):
+        super().save_analysis()
+
+        tacs_header: list[str] | str= ['Time(mins)']
+        tacs_table: list[np.ndarray] | np.ndarray = [self.fit_tacs[0].times_in_mins]
+        for seg_id, seg_name in enumerate(self.inferred_seg_labels):
+            tacs_header.append(f'seg-{seg_name}_activity')
+            tacs_header.append(f'seg-{seg_name}_uncertainty')
+            tacs_header.append(f'seg-{seg_name}_fit')
+            tacs_header.append(f'seg-{seg_name}_residuals')
+            roi_tac = TimeActivityCurve.from_tsv(self.tacs_files_list[seg_id])
+            fit_tac = self.fit_tacs[seg_id]
+            tacs_table.append(roi_tac.activity)
+            tacs_table.append(roi_tac.uncertainty)
+            tacs_table.append(fit_tac.activity)
+            tacs_table.append(roi_tac.activity-fit_tac.activity)
+
+        tacs_header = "\t".join(tacs_header)
+        tacs_table = np.asarray(tacs_table)
+
+        filename = [self.output_filename_prefix,
+                    f'desc-{self.short_tcm_name}',
+                    'multitacs.tsv']
+        filename = '_'.join(filename)
+        filepath = os.path.join(self.output_directory, filename)
+        np.savetxt(fname=filepath, X=tacs_table.T, delimiter='\t',
+                   fmt='%.8e', header=tacs_header, comments='')
+
+        _segs = []
+        _params = []
+        _vals = []
+        _errs = []
+        for seg_id, (seg_name, seg_analysis) in enumerate(zip(self.inferred_seg_labels, self.analysis_props)):
+            _fit_vals = seg_analysis['FitProperties']['FitValues']
+            _fit_errs = seg_analysis['FitProperties']['FitStdErr']
+            for param, val, err in zip(_fit_vals, _fit_vals.values(), _fit_errs.values()):
+                _segs.append(seg_name)
+                _params.append(param)
+                _vals.append(val)
+                _errs.append(err)
+
+        _tmp_km_df = pd.DataFrame.from_dict({'seg-name': _segs, 'param': _params, 'value': _vals, 'stderr': _errs})
+
+        filename = [self.output_filename_prefix,
+                    f'desc-{self.short_tcm_name}',
+                    'multifitprops.tsv']
+        filename = '_'.join(filename)
+        filepath = os.path.join(self.output_directory, filename)
+        _tmp_km_df.to_csv(path_or_buf=filepath, sep='\t', index=False)
