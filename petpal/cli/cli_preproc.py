@@ -210,9 +210,14 @@ def _generate_args() -> argparse.ArgumentParser:
                              help='Half life of radioisotope in seconds.'
                                   'Required for some motion targets.',type=float)
 
-    parser_tac = subparsers.add_parser('write-tacs-old',
-                                       help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks.')
+    parser_tac = subparsers.add_parser('write-tacs',
+                                       help='Write ROI TACs from 4D PET using segmentation masks.')
     parser_tac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
+    parser_tac.add_argument('-p',
+                            '--patid',
+                            help='Name of participant, appended to beginning of TAC output files.',
+                            required=True,
+                            type=str)
     parser_tac.add_argument('-o',
                             '--out-tac-dir',
                             default='petpal_tacs',
@@ -220,6 +225,20 @@ def _generate_args() -> argparse.ArgumentParser:
     parser_tac.add_argument('-s', '--segmentation', required=True,
                             help='Path to segmentation image in anatomical space.')
     parser_tac.add_argument('-l',
+                            '--label-map',
+                            required=True,
+                            help='Label map for the seg image, either a preset option or path to a json file')
+
+    parser_oldtac = subparsers.add_parser('write-tacs-old',
+                                       help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks.')
+    parser_oldtac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
+    parser_oldtac.add_argument('-o',
+                            '--out-tac-dir',
+                            default='petpal_tacs',
+                            help='Output TAC folder dir')
+    parser_oldtac.add_argument('-s', '--segmentation', required=True,
+                            help='Path to segmentation image in anatomical space.')
+    parser_oldtac.add_argument('-l',
                             '--label-map-path',
                             required=True,
                             help='Path to label map dseg.tsv')
