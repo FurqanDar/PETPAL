@@ -74,6 +74,40 @@ def _get_number_of_fit_params_for_tcm_func(f: Callable) -> int:
     """
     return len(_get_fitting_params_for_tcm_func(f))
 
+class TcmModelConfig:
+    def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray):
+        self.func = func
+        self.param_names = param_names
+        self.default_bounds = default_bounds
+        self.num_params = len(param_names)
+
+    _NAME_TO_FUNC: dict[str, Callable] = {}
+
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        return name.lower().replace(' ', '_').replace('_', '-')
+
+    @classmethod
+    def valid_model_names(cls) -> list[str]:
+        return sorted(set(cls._NAME_TO_FUNC.keys()))
+
+    @classmethod
+    def resolve_model_name(cls, model_name: str) -> Callable:
+        norm_name = cls.normalize_name(model_name)
+        try:
+            return cls._NAME_TO_FUNC[norm_name]
+        except KeyError as err:
+            valid_model_names = "', '".join(cls.valid_model_names())
+            raise ValueError(f"Unknown compartment model '{model_name}'. Valid options: '{valid_model_names}'") from err
+
+
+class ConvTcmModelConfig(TcmModelConfig):
+    """Configuration for convolution-based TCM models."""
+    _NAME_TO_FUNC: dict[str, Callable] = {
+        '1tcm'       : pet_tcms.gen_tac_1tcm_cpet_from_tac,
+        '2tcm-k4zero': pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
+        '2tcm'       : pet_tcms.gen_tac_2tcm_cpet_from_tac
+        }
 
 class TACFitter(object):
     r"""
@@ -1100,32 +1134,16 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
                 json.dump(obj=fit_props, fp=f, indent=4)
 
 
-class FrameAvgdTcmModelConfig:
-    def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray):
-        self.func = func
-        self.param_names = param_names
-        self.default_bounds = default_bounds
-        self.num_params = len(param_names)
+class FrameAvgdTcmModelConfig(TcmModelConfig):
+    """Configuration for frame-averaged TCM models.
 
-    _NAME_TO_FUNC: dict[str, Callable] = {'1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
-                                          'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd}
-
-    @staticmethod
-    def normalize_name(name: str) -> str:
-        return name.lower().replace(' ', '_').replace('_', '-')
-
-    @classmethod
-    def valid_model_names(cls) -> list[str]:
-        return sorted(set(cls._NAME_TO_FUNC.keys()))
-
-    @classmethod
-    def resolve_model_name(cls, model_name: str) -> Callable:
-        norm_name = cls.normalize_name(model_name)
-        try:
-            return cls._NAME_TO_FUNC[norm_name]
-        except KeyError as err:
-            valid_model_names = "', '".join(cls.valid_model_names())
-            raise ValueError(f"Unknown compartment model '{model_name}'. Valid options: '{valid_model_names}'") from err
+    Note: These models internally use convolution-based models as in :class:`ConvTcmModelConfig`,
+    but expose a different API for frame-averaged fitting.
+    """
+    _NAME_TO_FUNC: dict[str, Callable] = {
+        '1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
+        'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd
+        }
 
 
 _FRAME_AVGD_TCM_CONFIGS = {
