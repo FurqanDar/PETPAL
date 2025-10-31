@@ -858,7 +858,10 @@ class TCMAnalysis(object):
 
     def update_props_with_formatted_fit_values(self, fit_results, fit_props_dict: dict):
         fit_params, fit_covariances = fit_results
-        fit_stderr = np.sqrt(np.diagonal(fit_covariances))
+        try:
+            fit_stderr = np.sqrt(np.diagonal(fit_covariances))
+        except ValueError:
+            fit_stderr = np.nan * np.ones_like(fit_params)
         format_func = self._generate_pretty_params
         
         fit_props_dict["FitProperties"]["FitValues"] = format_func(fit_params.round(5))
