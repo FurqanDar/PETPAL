@@ -210,8 +210,8 @@ def _generate_args() -> argparse.ArgumentParser:
                              help='Half life of radioisotope in seconds.'
                                   'Required for some motion targets.',type=float)
 
-    parser_tac = subparsers.add_parser('write-tacs',
-                                       help='Write ROI TACs from 4D PET using segmentation masks.')
+    parser_tac = subparsers.add_parser('write-tacs-old',
+                                       help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks.')
     parser_tac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
     parser_tac.add_argument('-o',
                             '--out-tac-dir',
@@ -347,7 +347,7 @@ def main():
                               verbose=True,
                               half_life=args.half_life)
 
-    if command=='write_tacs':
+    if command=='write_tacs_old':
         regional_tac_extraction.write_tacs(input_image_path=args.input_img,
                                            out_tac_dir=args.out_tac_dir,
                                            segmentation_image_path=args.segmentation,
