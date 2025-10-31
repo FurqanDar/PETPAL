@@ -220,7 +220,7 @@ def _generate_args() -> argparse.ArgumentParser:
                             type=str)
     parser_tac.add_argument('-o',
                             '--out-tac-dir',
-                            default='petpal_tacs',
+                            required=True,
                             help='Output TAC folder dir')
     parser_tac.add_argument('-s', '--segmentation', required=True,
                             help='Path to segmentation image in anatomical space.')
@@ -384,7 +384,7 @@ def main():
                                                   segmentation_path=args.segmentation,
                                                   label_map=args.label_map)
         tac_obj(out_tac_prefix=args.patid,
-                out_tac_dir=args.out_tac_path,
+                out_tac_dir=args.out_tac_dir,
                 one_tsv_per_region=not args.excel)
 
     if command=='warp_pet_atlas':
