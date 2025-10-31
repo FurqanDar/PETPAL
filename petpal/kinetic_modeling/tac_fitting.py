@@ -1365,8 +1365,11 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
 
     def save_analysis(self):
         super().save_analysis()
+        self._save_multitacs_table()
+        self._save_multifitprops_table()
 
-        tacs_header: list[str] | str= ['Time(mins)']
+    def _save_multitacs_table(self):
+        tacs_header: list[str] | str = ['Time(mins)']
         tacs_table: list[np.ndarray] | np.ndarray = [self.fit_tacs[0].times_in_mins]
         for seg_id, seg_name in enumerate(self.inferred_seg_labels):
             tacs_header.append(f'seg-{seg_name}_activity')
@@ -1378,7 +1381,7 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
             tacs_table.append(roi_tac.activity)
             tacs_table.append(roi_tac.uncertainty)
             tacs_table.append(fit_tac.activity)
-            tacs_table.append(roi_tac.activity-fit_tac.activity)
+            tacs_table.append(roi_tac.activity - fit_tac.activity)
 
         tacs_header = "\t".join(tacs_header)
         tacs_table = np.asarray(tacs_table)
@@ -1391,6 +1394,7 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
         np.savetxt(fname=filepath, X=tacs_table.T, delimiter='\t',
                    fmt='%.8e', header=tacs_header, comments='')
 
+    def _save_multifitprops_table(self):
         _segs = []
         _params = []
         _vals = []
