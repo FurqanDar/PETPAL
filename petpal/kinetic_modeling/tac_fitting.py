@@ -962,7 +962,7 @@ class TCMAnalysis(object):
         self.save_analysis()
 
 
-class MultiTACTCMAnalsyis(TCMAnalysis, MultiTACAnalysisMixin):
+class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
     """
     A class for performing tissue compartment model (TCM) analysis on multiple tissue TACs.
 
@@ -993,7 +993,7 @@ class MultiTACTCMAnalsyis(TCMAnalysis, MultiTACAnalysisMixin):
                  max_func_iters: int = 2500,
                  ignore_blood_volume: bool = False):
         """
-        Initializes the MultiTACTCMAnalsyis object with required paths, model parameters, and fitting options.
+        Initializes the MultiTACTCMAnalysis object with required paths, model parameters, and fitting options.
 
         Args:
             input_tac_path (str): Path to the input TAC file.
@@ -1097,14 +1097,14 @@ class MultiTACTCMAnalsyis(TCMAnalysis, MultiTACAnalysisMixin):
                 json.dump(obj=fit_props, fp=f, indent=4)
 
 
-class TCMModelConfigurations:
+class FrameAvgdTcmModelConfig:
     def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray):
         self.func = func
         self.param_names = param_names
         self.default_bounds = default_bounds
         self.num_params = len(param_names)
 
-    _NAME_TO_FUNC: dict[str, Callable] = {'1tcm': pet_tcms.model_serial_1tcm_frame_avgd,
+    _NAME_TO_FUNC: dict[str, Callable] = {'1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
                                           'serial-2tcm': pet_tcms.model_serial_2tcm_frame_avgd}
 
     @staticmethod
@@ -1126,7 +1126,7 @@ class TCMModelConfigurations:
 
 
 _FRAME_AVGD_TCM_CONFIGS = {
-    pet_tcms.model_serial_1tcm_frame_avgd: TCMModelConfigurations(
+    pet_tcms.model_serial_1tcm_frame_avgd: FrameAvgdTcmModelConfig(
             func=pet_tcms.model_serial_1tcm_frame_avgd,
             param_names=['k1', 'k2', 'vb'],
             default_bounds=np.array([
@@ -1135,7 +1135,7 @@ _FRAME_AVGD_TCM_CONFIGS = {
                 [0.05, 1e-8, 0.5]  # vb
                 ])
             ),
-    pet_tcms.model_serial_2tcm_frame_avgd: TCMModelConfigurations(
+    pet_tcms.model_serial_2tcm_frame_avgd: FrameAvgdTcmModelConfig(
             func=pet_tcms.model_serial_2tcm_frame_avgd,
             param_names=['k1', 'k2', 'k3', 'k4', 'vb'],
             default_bounds=np.array([
@@ -1175,7 +1175,7 @@ class FrameAveragedTACFitter():
         self.frame_ends = scan_info.end_in_mins
 
         self.model_config = _FRAME_AVGD_TCM_CONFIGS[tcm_model_func]
-        self.tcm_model_func = tcm_model_func
+        self.tcm_func = tcm_model_func
 
         self.bounds = self._setup_bounds(fit_bounds=fit_bounds)
         self.initial_guesses = self.bounds[:, 0]
@@ -1189,14 +1189,14 @@ class FrameAveragedTACFitter():
         self.frame_idx_pairs = get_frame_index_pairs_from_fine_times(fine_times=self.fine_roi_tac.times_in_mins,
                                                                      frame_starts=self.frame_starts,
                                                                      frame_ends=self.frame_ends)
-        self.fit_weights = self._setup_weights(fit_weights=fit_weights)
+        self.weights = self._setup_weights(fit_weights=fit_weights)
 
-        self._fit_obj = lmfit.Minimizer(userfcn=self.tcm_model_func,
+        self._fit_obj = lmfit.Minimizer(userfcn=self.tcm_func,
                                         params=self.tcm_fit_params,
                                         fcn_args=(*self.fine_input_tac.tac,
                                                   self.frame_idx_pairs,
                                                   self.roi_tac.activity,
-                                                  self.fit_weights))
+                                                  self.weights))
         self.leastsq_kwargs = leastsq_kwargs
         self.result_obj: None | lmfit.minimizer.MinimizerResult = None
         self.fit_results: None | tuple[np.ndarray, np.ndarray] = None
@@ -1251,7 +1251,7 @@ class FrameAveragedTACFitter():
             if normalized in {'roi', 'roi-tac', 'tac-err', 'stderr'}:
                     return self.roi_tac.uncertainty
             warnings.warn(
-                    f"Unrecognized fit_weights='{fit_weights}'. "
+                    f"Unrecognized weights='{fit_weights}'. "
                     f"Valid options: 'roi', 'roi-tac', 'tac-err', 'stderr'. "
                     f"Setting weights to None.",
                     stacklevel=2
@@ -1272,14 +1272,14 @@ class FrameAveragedTACFitter():
         self.fit_residuals = self.result_obj.residual.copy()
         self.fit_sum_of_square_residuals = np.sum(self.fit_residuals ** 2)
 
-        _fit_tac_activity = self.tcm_model_func(self.result_obj.params, *self.fine_input_tac.tac, self.frame_idx_pairs)
+        _fit_tac_activity = self.tcm_func(self.result_obj.params, *self.fine_input_tac.tac, self.frame_idx_pairs)
         self.fit_tac = TimeActivityCurve(self.roi_tac.times_in_mins, _fit_tac_activity)
 
     def __call__(self):
         self.run_fit()
 
 
-class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis):
+class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
     def __init__(self,
                  input_tac_path: str,
                  roi_tacs_dir: str,
@@ -1317,13 +1317,13 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis):
 
     @staticmethod
     def validated_tcm(compartment_model: str) -> str:
-        normalized = TCMModelConfigurations.normalize_name(compartment_model)
-        TCMModelConfigurations.resolve_model_name(normalized)
+        normalized = FrameAvgdTcmModelConfig.normalize_name(compartment_model)
+        FrameAvgdTcmModelConfig.resolve_model_name(normalized)
         return normalized
 
     @staticmethod
     def _get_tcm_function(compartment_model: str) -> Callable:
-        return TCMModelConfigurations.resolve_model_name(compartment_model)
+        return FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
 
 
     def calculate_fit(self):
