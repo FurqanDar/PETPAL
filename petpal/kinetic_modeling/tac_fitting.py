@@ -1147,7 +1147,7 @@ class FrameAveragedTACFitter():
 
         self.input_tac = TimeActivityCurve(*input_tac.tac_werr)
         self.roi_tac = TimeActivityCurve(*roi_tac.tac_werr)
-        self.roi_has_err = not np.all(self.roi_tac.uncertainty == np.nan)
+        self.roi_has_err = not np.all(np.isnan(self.roi_tac.uncertainty))
         self.roi_tac.uncertainty[self.roi_tac.uncertainty == 0] = np.inf
 
         self.frame_durations = scan_info.duration_in_mins
@@ -1227,12 +1227,12 @@ class FrameAveragedTACFitter():
         if fit_weights is None:
             return None
         elif isinstance(fit_weights, str):
-            normalized = fit_weights.lower().replace(" ", "_").replace("-", "_")
-            if normalized in {'roi', 'roi_tac', 'tac_err', 'stderr'}:
+            normalized = fit_weights.lower().replace(" ", "-")
+            if normalized in {'roi', 'roi-tac', 'tac-err', 'stderr'}:
                     return self.roi_tac.uncertainty
             warnings.warn(
                     f"Unrecognized fit_weights='{fit_weights}'. "
-                    f"Valid options: 'roi', 'roi_tac', 'tac_err', 'stderr'. "
+                    f"Valid options: 'roi', 'roi-tac', 'tac-err', 'stderr'. "
                     f"Setting weights to None.",
                     stacklevel=2
                     )
@@ -1259,7 +1259,7 @@ class FrameAveragedTACFitter():
         self.run_fit()
 
 
-class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis, FrameAveragedTACFitter):
+class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis):
     def __init__(self,
                  input_tac_path: str,
                  roi_tacs_dir: str,
@@ -1313,24 +1313,6 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis, FrameAveragedTACFitt
         return tcm_funcs[compartment_model]
 
 
-    def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
-        assert self.tcm_func is not None, "This method should be run after `get_tcm_func_properties`"
-        if fit_bounds is not None:
-            assert fit_bounds.shape == (5, 3), ("Fit bounds has the wrong shape. For each potential"
-                                                " fitting parameter in `tcm_func`, we require the "
-                                                "tuple: `(initial, lower, upper)`.")
-            self.bounds = fit_bounds.copy()
-        else:
-            bounds = np.zeros((5, 3), float)
-            for pid, _param in enumerate(bounds[:-1]):
-                bounds[pid] = [0.1/(pid+1), 1.0e-8, 5.0/(pid+1)]
-            bounds[-1] = [0.1, 0.0, 1.0]
-            self.bounds = bounds.copy()
-
-        self.initial_guesses = self.bounds[:, 0]
-        self.bounds_lo = self.bounds[:, 1]
-        self.bounds_hi = self.bounds[:, 2]
-
     def calculate_fit(self):
         p_tac = TimeActivityCurve.from_tsv(self.input_tac_path)
         fit_obj = None
@@ -1339,12 +1321,11 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis, FrameAveragedTACFitt
             fit_obj = self.fitting_obj(input_tac=p_tac,
                                        roi_tac=t_tac,
                                        scan_info=self.scan_info,
-                                       tcm_func=tcm_2tcm_frame_avgd,
+                                       tcm_func=self._tcm_func,
                                        resample_number=self.resample_number,
                                        )
             fit_obj.run_fit()
             self.fit_results.append(fit_obj.fit_results)
-            self.lm_fits.append(fit_obj.result_obj)
             self.fit_tacs.append(fit_obj.fit_tac)
             self.analysis_props[tac_id]['FitProperties']['Sum Of Squared Residuals'] = fit_obj.fit_sum_of_square_residuals
         if (self.bounds is None) and (fit_obj is not None):
@@ -1360,7 +1341,7 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalsyis, FrameAveragedTACFitt
         try:
             fit_stderr = np.sqrt(np.diagonal(fit_covariances))
         except ValueError:
-            fit_stderr = np.nan * np.ones(5)
+            fit_stderr = np.nan * np.ones(len(fit_params))
         format_func = self._generate_pretty_params
 
         fit_props_dict["FitProperties"]["FitValues"] = format_func(fit_params.round(5))
