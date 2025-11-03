@@ -652,6 +652,34 @@ def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
             raise ValueError(f"Invalid method_name! Must be either 'patlak', 'logan', 'alt_logan', 'logan_ref'. Got {method_name}")
 
 
+def km_multifit_analysis_to_tsv(analysis_props: list[dict],
+                                output_directory: str,
+                                method: str,
+                                inferred_seg_labels: list[str]):
+    """
+    Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
+
+    Args:
+        analysis_props (list[dict]): List of fit results for each region.
+        output_directory (str): Directory where results are saved.
+        method (str): Name of the method for the model.
+        inferred_seg_labels (list[str]): Names of each region used in the analysis.
+    
+    Raises:
+        RuntimeError: If 'run_analysis' method has not been called before save_analysis.
+    """
+    if analysis_props[0]['RSquared'] is None:
+        raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
+
+    filename = f'{output_directory}_desc-{method}_fitprops.tsv'
+    filepath = os.path.join(output_directory, filename)
+    fit_table = pd.DataFrame()
+    for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
+        tmp_table = pd.DataFrame(fit_props,index=[seg_name])
+        fit_table = pd.concat([fit_table,tmp_table])
+    fit_table.T.to_csv(filepath, sep='\t')
+
+
 class GraphicalAnalysis:
     """
     :class:`GraphicalAnalysis` to handle Graphical Analysis for time activity curve (TAC) data.
