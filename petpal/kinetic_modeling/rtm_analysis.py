@@ -5,13 +5,14 @@ import os
 from typing import Union
 import json
 import numpy as np
-from petpal.kinetic_modeling.fit_tac_with_rtms import FitTACWithRTMs
-from petpal.kinetic_modeling.graphical_analysis import get_index_from_threshold
-from petpal.kinetic_modeling.reference_tissue_models import (calc_k2prime_from_mrtm_2003_fit,
-                                                             calc_k2prime_from_mrtm_original_fit,
-                                                             calc_bp_from_mrtm2_2003_fit,
-                                                             calc_bp_from_mrtm_original_fit,
-                                                             calc_bp_from_mrtm_2003_fit)
+import pandas as pd
+from .fit_tac_with_rtms import FitTACWithRTMs
+from .graphical_analysis import get_index_from_threshold
+from .reference_tissue_models import (calc_k2prime_from_mrtm_2003_fit,
+                                      calc_k2prime_from_mrtm_original_fit,
+                                      calc_bp_from_mrtm2_2003_fit,
+                                      calc_bp_from_mrtm_original_fit,
+                                      calc_bp_from_mrtm_2003_fit)
 from ..utils.time_activity_curve import TimeActivityCurve, safe_load_tac
 from ..utils.time_activity_curve import MultiTACAnalysisMixin
 
@@ -115,23 +116,39 @@ class RTMAnalysis:
         """
         common_props = {'FilePathRTAC': self.ref_tac_path,
                         'FilePathTTAC': self.roi_tac_path,
-                        'MethodName': method.upper()}
+                        'MethodName': method.upper(),
+                        'k2Prime': None}
         if method.startswith("mrtm"):
             props = {
                 'BP': None,
-                'k2Prime': None,
                 'ThresholdTime': None,
                 'StartFrameTime': None,
                 'EndFrameTime' : None,
                 'NumberOfPointsFit': None,
-                'RawFits': None,
+                'RawFits_1': None,
+                'RawFits_2': None,
+                'RawFits_3': None,
                 'SimulatedFits': None,
                 **common_props
                 }
-        elif method.startswith("srtm") or method.startswith("frtm"):
+        elif method.startswith("srtm"):
             props = {
-                'FitValues': None,
-                'FitStdErr': None,
+                'R1_FitValue': None,
+                'R1_FitStdErr': None,
+                'BP_FitValue': None,
+                'BP_FitStdErr': None,
+                **common_props
+                }
+        elif method.startswith("frtm"):
+            props = {
+                'R1_FitValue': None,
+                'R1_FitStdErr': None,
+                'k2_FitValue': None,
+                'k2_FitStdErr': None,
+                'k3_FitValue': None,
+                'k3_FitStdErr': None,
+                'k4_FitValue': None,
+                'k4_FitStdErr': None,
                 **common_props
                 }
         else:
@@ -310,7 +327,8 @@ class RTMAnalysis:
             k2_val = None
         props_dict["k2Prime"] = k2_val
         props_dict["BP"] = bp_val
-        props_dict["RawFits"] = list(fit_ans)
+        for i, fit in enumerate(list(fit_ans)):
+            props_dict[f"RawFits_{i+1}"] = fit
 
         if write_simulated:
             props_dict["SimulatedFits"] = list(y_fit.round(7))
@@ -348,11 +366,14 @@ class RTMAnalysis:
 
         if self.method.endswith('2'):
             props_dict["k2Prime"] = k2_prime
-            props_dict["FitValues"] = format_func(fit_params.round(5), True)
-            props_dict["FitStdErr"] = format_func(fit_stderr.round(5), True)
+            fit_params_clean = format_func(fit_params.round(5), True)
+            fit_stderr_clean = format_func(fit_stderr.round(5), True)
         else:
-            props_dict["FitValues"] = format_func(fit_params.round(5), False)
-            props_dict["FitStdErr"] = format_func(fit_stderr.round(5), False)
+            fit_params_clean = format_func(fit_params.round(5), False)
+            fit_stderr_clean = format_func(fit_stderr.round(5), False)
+        for p in fit_params_clean:
+            props_dict[f"{p}_FitValue"] = fit_params_clean[p]
+            props_dict[f"{p}_FitStdErr"] = fit_stderr_clean[p]
 
     @staticmethod
     def _get_pretty_srtm_fit_param_vals(param_fits: np.ndarray, reduced: bool = False) -> dict:
@@ -517,13 +538,10 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
         if not self._has_analysis_been_run:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
+        filename = f'{self.output_directory}_desc-{self.method}_fitprops.tsv'
+        filepath = os.path.join(self.output_directory, filename)
+        fit_table = pd.DataFrame()
         for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            filename = [self.output_filename_prefix,
-                        f'desc-{self.method}',
-                        f'seg-{seg_name}',
-                        'fitprops.json']
-            filename = '_'.join(filename)
-            filepath = os.path.join(self.output_directory, filename)
-
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(obj=fit_props, fp=f, indent=4)
+            tmp_table = pd.DataFrame(fit_props,index=[seg_name])
+            fit_table = pd.concat([fit_table,tmp_table])
+        fit_table.T.to_csv(filepath, sep='\t')
