@@ -655,7 +655,8 @@ def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
 def km_multifit_analysis_to_tsv(analysis_props: list[dict],
                                 output_directory: str,
                                 method: str,
-                                inferred_seg_labels: list[str]):
+                                inferred_seg_labels: list[str],
+                                has_analysis_been_run: bool):
     """
     Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
@@ -664,12 +665,12 @@ def km_multifit_analysis_to_tsv(analysis_props: list[dict],
         output_directory (str): Directory where results are saved.
         method (str): Name of the method for the model.
         inferred_seg_labels (list[str]): Names of each region used in the analysis.
+        has_analysis_been_run (bool): Code will not run if False.
     
     Raises:
         RuntimeError: If 'run_analysis' method has not been called before save_analysis.
     """
-    if analysis_props[0] is None:
-        raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
+    assert has_analysis_been_run, "'run_analysis' method must be called before 'save_analysis'."
 
     filename = f'{output_directory}_desc-{method}_fitprops.tsv'
     filepath = os.path.join(output_directory, filename)
@@ -684,15 +685,22 @@ def km_multifit_analysis_to_jsons(analysis_props: list[dict],
                                   output_directory: str,
                                   output_filename_prefix: str,
                                   method: str,
-                                  inferred_seg_labels: list[str]):
+                                  inferred_seg_labels: list[str],
+                                  has_analysis_been_run: bool):
     """
     Saves the analysis results to a JSON file for each segment/TAC.
+
+    Args:
+        analysis_props (list[dict]): List of fit results for each region.
+        output_directory (str): Directory where results are saved.
+        method (str): Name of the method for the model.
+        inferred_seg_labels (list[str]): Names of each region used in the analysis.
+        has_analysis_been_run (bool): Code will not run if False.
 
     Raises:
         RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
     """
-    if analysis_props[0] is None:
-        raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
+    assert has_analysis_been_run, "'run_analysis' method must be called before 'save_analysis'."
 
     for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
         filename = [output_filename_prefix,
