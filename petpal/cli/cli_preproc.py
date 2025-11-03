@@ -101,7 +101,7 @@ Examples:
   - Register to anatomical:
     petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
   - Write regional tacs:
-    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -o /tmp/petpal_tacs --segmentation /path/to/segmentation.nii.gz --label-map-path /path/to/dseg.tsv
+    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -p sub-001 -o /tmp/petpal_tacs -s /path/to/segmentation.nii.gz -l perlcyno -x
   - Half life weighted sum of series:
     petpal-preproc weighted-series-sum -i /path/to/input_img.nii.gz -o petpal_wss.nii.gz --half-life 6584 --start-time 1800 --end-time 7200
   - SUVR:
@@ -227,7 +227,8 @@ def _generate_args() -> argparse.ArgumentParser:
     parser_tac.add_argument('-l',
                             '--label-map',
                             required=True,
-                            help='Label map for the seg image, either a preset option or path to a json file')
+                            help='Label map for the seg image, either a preset option or path to a json file.'
+                                 'E.g. freesurfer, freesurfer_merge_lr, perlcyno, perlcyno_merge_lr, /path/to/my_label_map.json.')
     parser_tac.add_argument('-x',
                             '--excel',
                             action='store_true',
