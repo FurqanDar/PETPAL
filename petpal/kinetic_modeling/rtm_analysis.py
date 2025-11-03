@@ -529,8 +529,8 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
 
     def save_analysis(self):
         """
-        Saves the analysis results to a JSON file for each segment/TAC. Overrides
-        :meth:`RTMAnalysis.save_analysis`.
+        Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
+        Overrides :meth:`RTMAnalysis.save_analysis`.
 
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.

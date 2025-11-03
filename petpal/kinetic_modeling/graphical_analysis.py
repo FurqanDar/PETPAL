@@ -987,7 +987,7 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
 
     def save_analysis(self):
         """
-        Saves the analysis results to a JSON file for each segment.
+        Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before save_analysis.
