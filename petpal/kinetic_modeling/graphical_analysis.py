@@ -1046,6 +1046,10 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         """
         Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
+        Args:
+            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
+                table. Default True.
+
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before save_analysis.
         """
@@ -1071,6 +1075,8 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         analysis properties.
         
         Args:
+            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
+                table. Default True.
             run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
                 :meth:`run_analysis`.
         """

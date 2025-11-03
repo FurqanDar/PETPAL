@@ -5,9 +5,10 @@ import os
 from typing import Union
 import json
 import numpy as np
-import pandas as pd
 from .fit_tac_with_rtms import FitTACWithRTMs
-from .graphical_analysis import get_index_from_threshold
+from .graphical_analysis import (get_index_from_threshold,
+                                 km_multifit_analysis_to_jsons,
+                                 km_multifit_analysis_to_tsv)
 from .reference_tissue_models import (calc_k2prime_from_mrtm_2003_fit,
                                       calc_k2prime_from_mrtm_original_fit,
                                       calc_bp_from_mrtm2_2003_fit,
@@ -527,21 +528,44 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
                                           t_thresh_in_mins=t_thresh_in_mins,
                                           props_dict=props_dict)
 
-    def save_analysis(self):
+    def save_analysis(self, one_file_per_region: bool=True):
         """
         Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
         Overrides :meth:`RTMAnalysis.save_analysis`.
 
+        Args:
+            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
+                table. Default True.
+        
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
         """
         if not self._has_analysis_been_run:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
-        filename = f'{self.output_directory}_desc-{self.method}_fitprops.tsv'
-        filepath = os.path.join(self.output_directory, filename)
-        fit_table = pd.DataFrame()
-        for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            tmp_table = pd.DataFrame(fit_props,index=[seg_name])
-            fit_table = pd.concat([fit_table,tmp_table])
-        fit_table.T.to_csv(filepath, sep='\t')
+        if one_file_per_region:
+            km_multifit_analysis_to_jsons(analysis_props=self.analysis_props,
+                                          output_directory=self.output_directory,
+                                          output_filename_prefix=self.output_filename_prefix,
+                                          method=self.method,
+                                          inferred_seg_labels=self.inferred_seg_labels)
+        else:
+            km_multifit_analysis_to_tsv(analysis_props=self.analysis_props,
+                                        output_directory=self.output_directory,
+                                        output_filename_prefix=self.output_filename_prefix,
+                                        method=self.method,
+                                        inferred_seg_labels=self.inferred_seg_labels)
+
+    def __call__(self, one_file_per_region: bool=True, **run_kwargs):
+        """
+        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
+        analysis properties.
+        
+        Args:
+            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
+                table. Default True.
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`run_analysis`.
+        """
+        self.run_analysis(**run_kwargs)
+        self.save_analysis(one_file_per_region=one_file_per_region)
