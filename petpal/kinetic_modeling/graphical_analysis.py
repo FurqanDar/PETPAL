@@ -24,8 +24,8 @@ import os
 import json
 import numba
 import numpy as np
-from ..utils.time_activity_curve import MultiTACAnalysisMixin
-from ..utils.time_activity_curve import safe_load_tac
+import pandas as pd
+from ..utils.time_activity_curve import MultiTACAnalysisMixin, safe_load_tac
 
 
 @numba.njit()
@@ -995,12 +995,10 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         if self.analysis_props[0]['RSquared'] is None:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
+        filename = f'{self.output_directory}_desc-{self.method}_fitprops.tsv'
+        filepath = os.path.join(self.output_directory, filename)
+        fit_table = pd.DataFrame()
         for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            filename = [self.output_filename_prefix,
-                        f'desc-{self.method}',
-                        f'seg-{seg_name}',
-                        'fitprops.json']
-            filename = '_'.join(filename)
-            filepath = os.path.join(self.output_directory, filename)
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(obj=fit_props, fp=f, indent=4)
+            tmp_table = pd.DataFrame(fit_props,index=[seg_name])
+            fit_table = pd.concat([fit_table,tmp_table])
+        fit_table.T.to_csv(filepath, sep='\t')
