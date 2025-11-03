@@ -654,25 +654,23 @@ def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
 
 def km_multifit_analysis_to_tsv(analysis_props: list[dict],
                                 output_directory: str,
+                                output_filename_prefix: str,
                                 method: str,
-                                inferred_seg_labels: list[str],
-                                has_analysis_been_run: bool):
+                                inferred_seg_labels: list[str]):
     """
     Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
     Args:
         analysis_props (list[dict]): List of fit results for each region.
         output_directory (str): Directory where results are saved.
+        output_filename_prefix (str): Prefix for the output file.
         method (str): Name of the method for the model.
         inferred_seg_labels (list[str]): Names of each region used in the analysis.
-        has_analysis_been_run (bool): Code will not run if False.
     
     Raises:
         RuntimeError: If 'run_analysis' method has not been called before save_analysis.
     """
-    assert has_analysis_been_run, "'run_analysis' method must be called before 'save_analysis'."
-
-    filename = f'{output_directory}_desc-{method}_fitprops.tsv'
+    filename = f'{output_filename_prefix}_desc-{method}_fitprops.tsv'
     filepath = os.path.join(output_directory, filename)
     fit_table = pd.DataFrame()
     for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
@@ -685,23 +683,20 @@ def km_multifit_analysis_to_jsons(analysis_props: list[dict],
                                   output_directory: str,
                                   output_filename_prefix: str,
                                   method: str,
-                                  inferred_seg_labels: list[str],
-                                  has_analysis_been_run: bool):
+                                  inferred_seg_labels: list[str]):
     """
     Saves the analysis results to a JSON file for each segment/TAC.
 
     Args:
         analysis_props (list[dict]): List of fit results for each region.
         output_directory (str): Directory where results are saved.
+        output_filename_prefix (str): Prefix for the output files.
         method (str): Name of the method for the model.
         inferred_seg_labels (list[str]): Names of each region used in the analysis.
-        has_analysis_been_run (bool): Code will not run if False.
 
     Raises:
         RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
     """
-    assert has_analysis_been_run, "'run_analysis' method must be called before 'save_analysis'."
-
     for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
         filename = [output_filename_prefix,
                     f'desc-{method}',
@@ -1047,7 +1042,7 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
             self.analysis_props[tac_id]['EndFrameTime'] = end_time
             self.analysis_props[tac_id]['NumberOfPointsFit'] = points_fit
 
-    def save_analysis(self):
+    def save_analysis(self, one_file_per_region: bool=True):
         """
         Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
@@ -1057,10 +1052,27 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         if self.analysis_props[0]['RSquared'] is None:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
-        filename = f'{self.output_directory}_desc-{self.method}_fitprops.tsv'
-        filepath = os.path.join(self.output_directory, filename)
-        fit_table = pd.DataFrame()
-        for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            tmp_table = pd.DataFrame(fit_props,index=[seg_name])
-            fit_table = pd.concat([fit_table,tmp_table])
-        fit_table.T.to_csv(filepath, sep='\t')
+        if one_file_per_region:
+            km_multifit_analysis_to_jsons(analysis_props=self.analysis_props,
+                                          output_directory=self.output_directory,
+                                          output_filename_prefix=self.output_filename_prefix,
+                                          method=self.method,
+                                          inferred_seg_labels=self.inferred_seg_labels)
+        else:
+            km_multifit_analysis_to_tsv(analysis_props=self.analysis_props,
+                                        output_directory=self.output_directory,
+                                        output_filename_prefix=self.output_filename_prefix,
+                                        method=self.method,
+                                        inferred_seg_labels=self.inferred_seg_labels)
+
+    def __call__(self, one_file_per_region: bool=True, **run_kwargs):
+        """
+        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
+        analysis properties.
+        
+        Args:
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`run_analysis`.
+        """
+        self.run_analysis(**run_kwargs)
+        self.save_analysis(one_file_per_region=one_file_per_region)
