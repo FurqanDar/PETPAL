@@ -668,7 +668,7 @@ def km_multifit_analysis_to_tsv(analysis_props: list[dict],
     Raises:
         RuntimeError: If 'run_analysis' method has not been called before save_analysis.
     """
-    if analysis_props[0]['RSquared'] is None:
+    if analysis_props[0] is None:
         raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
     filename = f'{output_directory}_desc-{method}_fitprops.tsv'
@@ -678,6 +678,32 @@ def km_multifit_analysis_to_tsv(analysis_props: list[dict],
         tmp_table = pd.DataFrame(fit_props,index=[seg_name])
         fit_table = pd.concat([fit_table,tmp_table])
     fit_table.T.to_csv(filepath, sep='\t')
+
+
+def km_multifit_analysis_to_jsons(analysis_props: list[dict],
+                                  output_directory: str,
+                                  output_filename_prefix: str,
+                                  method: str,
+                                  inferred_seg_labels: list[str]):
+    """
+    Saves the analysis results to a JSON file for each segment/TAC.
+
+    Raises:
+        RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
+    """
+    if analysis_props[0] is None:
+        raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
+
+    for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
+        filename = [output_filename_prefix,
+                    f'desc-{method}',
+                    f'seg-{seg_name}',
+                    'fitprops.json']
+        filename = '_'.join(filename)
+        filepath = os.path.join(output_directory, filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(obj=fit_props, fp=f, indent=4)
 
 
 class GraphicalAnalysis:
