@@ -36,7 +36,14 @@ Examples:
        petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
 
 
-   * Write regional tacs:
+    * Write regional tacs:
+
+   .. code-block:: bash
+
+    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -p sub-001 -o /tmp/petpal_tacs -s /path/to/segmentation.nii.gz -l perlcyno -x
+
+
+   * Write regional tacs, deprecated:
 
    .. code-block:: bash
 
@@ -102,6 +109,8 @@ Examples:
     petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
   - Write regional tacs:
     petpal-preproc write-tacs -i /path/to/input_img.nii.gz -p sub-001 -o /tmp/petpal_tacs -s /path/to/segmentation.nii.gz -l perlcyno -x
+  - Write tacs, deprecated:
+    petpal-preproc write-tacs-old -i /path/to/input_img.nii.gz -o /tmp/petpal_tacs --segmentation /path/to/segmentation.nii.gz --label-map-path /path/to/dseg.tsv
   - Half life weighted sum of series:
     petpal-preproc weighted-series-sum -i /path/to/input_img.nii.gz -o petpal_wss.nii.gz --half-life 6584 --start-time 1800 --end-time 7200
   - SUVR:
@@ -237,7 +246,7 @@ def _generate_args() -> argparse.ArgumentParser:
                             help='Option to store results as a single file table instead of one TAC file per region.')
 
     parser_oldtac = subparsers.add_parser('write-tacs-old',
-                                       help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks.')
+                                          help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks. Uses `dseg.tsv`file as label map.')
     parser_oldtac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
     parser_oldtac.add_argument('-o',
                             '--out-tac-dir',
