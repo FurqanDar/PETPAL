@@ -109,6 +109,40 @@ class ConvTcmModelConfig(TcmModelConfig):
         '2tcm'       : pet_tcms.gen_tac_2tcm_cpet_from_tac
         }
 
+
+_CONV_TCM_MODELS_CONFIGS = {
+    pet_tcms.gen_tac_1tcm_cpet_from_tac            : ConvTcmModelConfig(
+            func=pet_tcms.gen_tac_1tcm_cpet_from_tac,
+            param_names=['k1', 'k2', 'vb'],
+            default_bounds=np.array([
+                [0.2, 1e-8, 0.5],  # k1
+                [0.1, 1e-8, 0.5],  # k2
+                [0.05, 1e-8, 0.5]  # vb
+                ])
+            ),
+    pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac: ConvTcmModelConfig(
+            func=pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
+            param_names=['k1', 'k2', 'k3', 'k4', 'vb'],
+            default_bounds=np.array([
+                [0.2, 1e-8, 0.5],  # k1
+                [0.1, 1e-8, 0.5],  # k2
+                [0.1, 1e-8, 0.5],  # k3
+                [0.05, 1e-8, 0.5]  # vb
+                ])
+            ),
+    pet_tcms.gen_tac_2tcm_cpet_from_tac            : ConvTcmModelConfig(
+            func=pet_tcms.gen_tac_2tcm_cpet_from_tac,
+            param_names=['k1', 'k2', 'k3', 'k4', 'vb'],
+            default_bounds=np.array([
+                [0.2, 1e-8, 0.5],  # k1
+                [0.1, 1e-8, 0.5],  # k2
+                [0.1, 1e-8, 0.5],  # k3,
+                [0.01, 1e-8, 0.5], # k4
+                [0.05, 1e-8, 0.5]  # vb
+                ])
+            )
+    }
+
 class TACFitter(object):
     r"""
     A class used for fitting Tissue Compartment Models(TCM) to Time Activity Curves (TAC).
