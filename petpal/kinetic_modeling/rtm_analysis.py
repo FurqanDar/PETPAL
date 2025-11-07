@@ -122,34 +122,19 @@ class RTMAnalysis:
         if method.startswith("mrtm"):
             props = {
                 'BP': None,
+                'k2Prime': None,
                 'ThresholdTime': None,
                 'StartFrameTime': None,
                 'EndFrameTime' : None,
                 'NumberOfPointsFit': None,
-                'RawFits_1': None,
-                'RawFits_2': None,
-                'RawFits_3': None,
+                'RawFits': None,
                 'SimulatedFits': None,
                 **common_props
                 }
-        elif method.startswith("srtm"):
+        elif method.startswith("srtm") or method.startswith("frtm"):
             props = {
-                'R1_FitValue': None,
-                'R1_FitStdErr': None,
-                'BP_FitValue': None,
-                'BP_FitStdErr': None,
-                **common_props
-                }
-        elif method.startswith("frtm"):
-            props = {
-                'R1_FitValue': None,
-                'R1_FitStdErr': None,
-                'k2_FitValue': None,
-                'k2_FitStdErr': None,
-                'k3_FitValue': None,
-                'k3_FitStdErr': None,
-                'k4_FitValue': None,
-                'k4_FitStdErr': None,
+                'FitValues': None,
+                'FitStdErr': None,
                 **common_props
                 }
         else:
@@ -328,8 +313,7 @@ class RTMAnalysis:
             k2_val = None
         props_dict["k2Prime"] = k2_val
         props_dict["BP"] = bp_val
-        for i, fit in enumerate(list(fit_ans)):
-            props_dict[f"RawFits_{i+1}"] = fit
+        props_dict["RawFits"] = list(fit_ans)
 
         if write_simulated:
             props_dict["SimulatedFits"] = list(y_fit.round(7))
@@ -367,14 +351,11 @@ class RTMAnalysis:
 
         if self.method.endswith('2'):
             props_dict["k2Prime"] = k2_prime
-            fit_params_clean = format_func(fit_params.round(5), True)
-            fit_stderr_clean = format_func(fit_stderr.round(5), True)
+            props_dict["FitValues"] = format_func(fit_params.round(5), True)
+            props_dict["FitStdErr"] = format_func(fit_stderr.round(5), True)
         else:
-            fit_params_clean = format_func(fit_params.round(5), False)
-            fit_stderr_clean = format_func(fit_stderr.round(5), False)
-        for p in fit_params_clean:
-            props_dict[f"{p}_FitValue"] = fit_params_clean[p]
-            props_dict[f"{p}_FitStdErr"] = fit_stderr_clean[p]
+            props_dict["FitValues"] = format_func(fit_params.round(5), False)
+            props_dict["FitStdErr"] = format_func(fit_stderr.round(5), False)
 
     @staticmethod
     def _get_pretty_srtm_fit_param_vals(param_fits: np.ndarray, reduced: bool = False) -> dict:
