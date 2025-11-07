@@ -2,6 +2,7 @@
 Class for doing RTM analysis
 """
 import os
+import warnings
 from typing import Union
 import json
 import numpy as np
@@ -509,44 +510,48 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
                                           t_thresh_in_mins=t_thresh_in_mins,
                                           props_dict=props_dict)
 
-    def save_analysis(self, one_file_per_region: bool=True):
+    def save_analysis(self, output_as_tsv: bool=True, output_as_json: bool=False):
         """
         Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
-        Overrides :meth:`RTMAnalysis.save_analysis`.
 
         Args:
-            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
-                table. Default True.
-        
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
+
         Raises:
-            RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
+            RuntimeError: If 'run_analysis' method has not been called before save_analysis.
         """
         if not self._has_analysis_been_run:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
-        if one_file_per_region:
+        if output_as_tsv:
             km_multifit_analysis_to_jsons(analysis_props=self.analysis_props,
                                           output_directory=self.output_directory,
                                           output_filename_prefix=self.output_filename_prefix,
                                           method=self.method,
                                           inferred_seg_labels=self.inferred_seg_labels)
-        else:
+        if output_as_json:
             km_multifit_analysis_to_tsv(analysis_props=self.analysis_props,
                                         output_directory=self.output_directory,
                                         output_filename_prefix=self.output_filename_prefix,
                                         method=self.method,
                                         inferred_seg_labels=self.inferred_seg_labels)
+        if not output_as_tsv and not output_as_json:
+            warnings.warn('Both output_as_tsv and output_as_json set False. Results not written to '
+                          ' file.')
 
-    def __call__(self, one_file_per_region: bool=True, **run_kwargs):
+    def __call__(self, output_as_tsv: bool=True, output_as_json: bool=False, **run_kwargs):
         """
         Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
         analysis properties.
         
         Args:
-            one_file_per_region (bool): Set True for one JSON result per ROI, False for one TSV
-                table. Default True.
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
             run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
                 :meth:`run_analysis`.
         """
         self.run_analysis(**run_kwargs)
-        self.save_analysis(one_file_per_region=one_file_per_region)
+        self.save_analysis(output_as_tsv=output_as_tsv, output_as_json=output_as_json)

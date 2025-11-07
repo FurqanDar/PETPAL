@@ -1049,8 +1049,9 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
 
         Args:
-            output_as_tsv (bool): Set True for one JSON result per ROI, False for one TSV
-                table. Default True.
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
 
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before save_analysis.
