@@ -232,6 +232,9 @@ class TACFitter(object):
         * :class:`TACFitterWithoutBloodVolume` to assume :math:`V_B=0` and only fit the kinetic parameters.
         
     """
+
+    SUPPORTED_MODELS = frozenset(_CONV_TCM_MODELS_CONFIGS.keys())
+
     def __init__(self,
                  pTAC: np.ndarray,
                  tTAC: np.ndarray,
@@ -267,34 +270,34 @@ class TACFitter(object):
         """
 
         self.max_func_evals: int = max_iters
-        self.tcm_func: Callable = None
-        self.fit_param_number: int = None
-        self.fit_param_names: list = None
+        self.tcm_func: Callable | None = None
+        self.fit_param_number: int | None = None
+        self.fit_param_names: list | None = None
 
-        self.bounds: np.ndarray = None
-        self.initial_guesses: np.ndarray = None
-        self.bounds_lo: np.ndarray = None
-        self.bounds_hi: np.ndarray = None
+        self.bounds: np.ndarray | None = None
+        self.initial_guesses: np.ndarray | None = None
+        self.bounds_lo: np.ndarray | None = None
+        self.bounds_hi: np.ndarray | None = None
 
         self.get_tcm_func_properties(tcm_func)
         self.set_bounds_and_initial_guesses(fit_bounds)
 
         self.raw_p_tac: np.ndarray = pTAC.copy()
         self.raw_t_tac: np.ndarray = tTAC.copy()
-        self.sanitized_t_tac: np.ndarray = None
-        self.sanitized_p_tac: np.ndarray = None
-        self.resample_times: np.ndarray = None
-        self.delta_t: float = None
-        self.resampled_t_tac: np.ndarray = None
-        self.resampled_p_tac: np.ndarray = None
+        self.sanitized_t_tac: np.ndarray | None = None
+        self.sanitized_p_tac: np.ndarray | None = None
+        self.resample_times: np.ndarray | None = None
+        self.delta_t: float | None = None
+        self.resampled_t_tac: np.ndarray | None = None
+        self.resampled_p_tac: np.ndarray | None = None
 
         self.resample_tacs_evenly(aif_fit_thresh_in_mins, resample_num)
 
-        self.weights: np.ndarray = None
+        self.weights: np.ndarray | None = None
         self.set_weights(weights)
 
-        self.p_tac_vals: np.ndarray = self.resampled_p_tac[1]
-        self.tgt_tac_vals: np.ndarray = self.resampled_t_tac[1]
+        self.p_tac_vals: np.ndarray | None = self.resampled_p_tac[1]
+        self.tgt_tac_vals: np.ndarray | None = self.resampled_t_tac[1]
         self.fit_results = None
 
     def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
