@@ -272,17 +272,15 @@ class TACFitter(object):
         self._validate_inputs(input_tac=pTAC, roi_tac=tTAC, tcm_func=tcm_func)
 
         self.max_func_evals: int = max_iters
-        self.tcm_func: Callable | None = None
-        self.fit_param_number: int | None = None
-        self.fit_param_names: list | None = None
+        self.model_config = _CONV_TCM_MODELS_CONFIGS[tcm_func]
+        self.tcm_func: Callable | None = tcm_func
+        self.fit_param_number: int | None = self.model_config.num_params
+        self.fit_param_names: list[str] | None = self.model_config.param_names
 
-        self.bounds: np.ndarray | None = None
-        self.initial_guesses: np.ndarray | None = None
-        self.bounds_lo: np.ndarray | None = None
-        self.bounds_hi: np.ndarray | None = None
-
-        self.get_tcm_func_properties(tcm_func)
-        self.set_bounds_and_initial_guesses(fit_bounds)
+        self.bounds = self._setup_bounds(fit_bounds=fit_bounds)
+        self.initial_guesses = self.bounds[:, 0]
+        self.bounds_lo = self.bounds[:, 1]
+        self.bounds_hi = self.bounds[:, 2]
 
         self.raw_p_tac: np.ndarray = pTAC.copy()
         self.raw_t_tac: np.ndarray = tTAC.copy()
@@ -312,52 +310,19 @@ class TACFitter(object):
                     f"{', '.join(f.__name__ for f in self.SUPPORTED_MODELS)}"
                     )
 
-    def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
-        r"""
-        Sets initial guesses for the fitting parameters, along with their lower and upper bounds.
+    def _setup_bounds(self, fit_bounds: np.ndarray | None) -> np.ndarray:
+        expected_shape = (self.model_config.num_params, 3)
 
-        The function checks if a custom ``fit_bounds`` is provided. If yes, it makes
-        sure that its shape is valid (that is, for each fitting parameter it requires
-        the tuple: ``(initial, lower, upper)``) and then sets it. But if no custom
-        `fit_bounds` is given, it first initializes bounds to all zeros and then sets
-        each parameter's bounds to ``(0.1, 1.0e-8, 5.0)`` except for the last parameter,
-        which it sets to ``(0.1, 0.0, 1.0)`` because it corresponds to the fraction of blood
-        and is physically constrained between 0 and 1. The function separately stores the initial points,
-        lower and upper bounds in three different numpy arrays for later use.
-
-        Args:
-            fit_bounds (numpy.ndarray): A 2D numpy array containing initial parameter guesses, and their lower and
-                upper bounds in the form of ``(initial, lower, upper)``. The shape should be
-                (``number_of_fit_params``, 3).
-
-        Raises:
-            AssertionError: If `fit_bounds` doesn't have a valid shape.
-
-        Side Effects:
-            - bounds (np.ndarray): Either takes custom defined ``fit_bounds``, or sets the default bounds
-                                   for each parameter with the last parameter having bounds defined
-                                   between 0 and 1.
-            - initial_guesses (np.ndarray): Initial guesses for all the parameters.
-            - bounds_lo (np.ndarray): Lower bounds for all the parameters.
-            - bounds_hi (np.ndarray): Upper bounds for all the parameters.
-        
-        """
-        assert self.tcm_func is not None, "This method should be run after `get_tcm_func_properties`"
         if fit_bounds is not None:
-            assert fit_bounds.shape == (self.fit_param_number, 3), ("Fit bounds has the wrong shape. For each potential"
-                                                                    " fitting parameter in `tcm_func`, we require the "
-                                                                    "tuple: `(initial, lower, upper)`.")
-            self.bounds = fit_bounds.copy()
-        else:
-            bounds = np.zeros((self.fit_param_number, 3), float)
-            for pid, _param in enumerate(bounds[:-1]):
-                bounds[pid] = [0.1, 1.0e-8, 5.0]
-            bounds[-1] = [0.1, 0.0, 1.0]
-            self.bounds = bounds.copy()
+            if fit_bounds.shape != expected_shape:
+                raise ValueError(
+                        f"fit_bounds has wrong shape {fit_bounds.shape}. "
+                        f"Expected {expected_shape} for parameters: "
+                        f"{', '.join(self.model_config.param_names)}"
+                        )
+            return fit_bounds.copy()
 
-        self.initial_guesses = self.bounds[:, 0]
-        self.bounds_lo = self.bounds[:, 1]
-        self.bounds_hi = self.bounds[:, 2]
+        return self.model_config.default_bounds.copy()
 
     def resample_tacs_evenly(self, fit_thresh_in_mins: float, resample_num: int) -> None:
         r"""
@@ -452,36 +417,7 @@ class TACFitter(object):
             self.weights = np.interp(x=self.resampled_t_tac[0], xp=self.raw_t_tac[0], fp=weights)
         else:
             self.weights = np.ones_like(self.resampled_t_tac[1])
-    
-    def get_tcm_func_properties(self, tcm_func: Callable) -> None:
-        r"""
-        Analyzes the provided tissue compartment model (TCM) function, sets it for the current instance, and extracts
-        related property information. The ``tcm_func`` should be one of the following:
-        
-        * :func:`gen_tac_1tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_1tcm_cpet_from_tac>`
-        * :func:`gen_tac_2tcm_with_k4zero_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_with_k4zero_cpet_from_tac>`
-        * :func:`gen_tac_2tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_cpet_from_tac>`
 
-        The function extracts fitting parameter names and their count from the function signature and sets them in the
-        current instance for later usage.
-
-        Args:
-            tcm_func (Callable): A function that generates a TAC using a specific compartment model.
-
-        Raises:
-            AssertionError: If ``tcm_func`` is not one of the allowed TCM functions.
-        """
-        assert tcm_func in [pet_tcms.gen_tac_1tcm_cpet_from_tac,
-                            pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
-                            pet_tcms.gen_tac_2tcm_cpet_from_tac], (
-            "`tcm_func should be one of `pet_tcms.gen_tac_1tcm_cpet_from_tac`, "
-            "`pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac`, "
-            "`pet_tcms.gen_tac_2tcm_cpet_from_tac`")
-        
-        self.tcm_func = tcm_func
-        self.fit_param_names = _get_fitting_params_for_tcm_func(self.tcm_func)
-        self.fit_param_number = len(self.fit_param_names)
-    
     @staticmethod
     def sanitize_tac(tac_times_in_minutes: np.ndarray, tac_vals: np.ndarray) -> np.ndarray:
         r"""
