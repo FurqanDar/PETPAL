@@ -26,7 +26,7 @@ Examples:
 
    .. code-block:: bash
 
-       petpal-preproc window-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
+       petpal-preproc windowed-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
 
 
    * Register to anatomical:
@@ -104,7 +104,7 @@ Examples:
   - Auto crop:
     petpal-preproc auto-crop -i /path/to/input_img.nii.gz -o petpal_crop.nii.gz -t 0.05
   - Windowed moco:
-    petpal-preproc window-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
+    petpal-preproc windowed-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
   - Register to anatomical:
     petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
   - Write regional tacs:
@@ -299,7 +299,7 @@ def _generate_args() -> argparse.ArgumentParser:
                                 required=True)
 
 
-    parser_window_moco = subparsers.add_parser('window-motion-corr',
+    parser_window_moco = subparsers.add_parser('windowed-motion-corr',
                                                help='Windowed motion correction for 4D PET'
                                                     ' using ANTS')
     _add_common_args(parser_window_moco)
@@ -345,6 +345,10 @@ def main():
         preproc_parser.print_help()
         raise SystemExit('Exiting without command')
 
+    if len(args.motion_target)==1:
+        motion_target = args.motion_target[0]
+    else:
+        motion_target = args.motion_target
 
     command = str(args.command).replace('-','_')
 
@@ -363,22 +367,17 @@ def main():
                                                    verbose=True)
 
     if command=='motion_correction':
-        if len(args.motion_target)==1:
-            motion_target = args.motion_target[0]
-        else:
-            motion_target = args.motion_target
         motion_corr.motion_corr(input_image_4d_path=args.input_img,
                                 out_image_path=args.out_img,
                                 motion_target_option=motion_target,
                                 verbose=True,
                                 type_of_transform=args.transform_type,
                                 half_life=args.half_life)
-
     if command=='register_pet':
         register.register_pet(input_reg_image_path=args.input_img,
                               out_image_path=args.out_img,
                               reference_image_path=args.anatomical,
-                              motion_target_option=args.motion_target,
+                              motion_target_option=motion_target,
                               verbose=True,
                               half_life=args.half_life)
 
@@ -417,10 +416,10 @@ def main():
                                  segmentation_image_path=args.segmentation,
                                  ref_region=args.ref_region)
 
-    if command=='window_motion_corr':
+    if command=='windowed_motion_corr':
         motion_corr.windowed_motion_corr_to_target(input_image_path=args.input_img,
                                                    out_image_path=args.out_img,
-                                                   motion_target_option=args.motion_target,
+                                                   motion_target_option=motion_target,
                                                    w_size=args.window_size,
                                                    type_of_transform=args.transform_type)
 
