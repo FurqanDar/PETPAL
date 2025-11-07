@@ -269,6 +269,8 @@ class TACFitter(object):
                 
         """
 
+        self._validate_inputs(input_tac=pTAC, roi_tac=tTAC, tcm_func=tcm_func)
+
         self.max_func_evals: int = max_iters
         self.tcm_func: Callable | None = None
         self.fit_param_number: int | None = None
@@ -299,6 +301,16 @@ class TACFitter(object):
         self.p_tac_vals: np.ndarray | None = self.resampled_p_tac[1]
         self.tgt_tac_vals: np.ndarray | None = self.resampled_t_tac[1]
         self.fit_results = None
+
+    def _validate_inputs(self, input_tac: np.ndarray, roi_tac: np.ndarray, tcm_func: Callable):
+        assert input_tac.ndim == 2, "Input TAC must be a 2D array of times and activity"
+        assert roi_tac.ndim == 2, "Input TAC must be a 2D array of times and activity"
+
+        if tcm_func not in self.SUPPORTED_MODELS:
+            raise ValueError(
+                    f"tcm_model_func must be one of: "
+                    f"{', '.join(f.__name__ for f in self.SUPPORTED_MODELS)}"
+                    )
 
     def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
         r"""
