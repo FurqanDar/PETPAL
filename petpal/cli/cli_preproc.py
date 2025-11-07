@@ -36,7 +36,14 @@ Examples:
        petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
 
 
-   * Write regional tacs:
+    * Write regional tacs:
+
+   .. code-block:: bash
+
+    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -p sub-001 -o /tmp/petpal_tacs -s /path/to/segmentation.nii.gz -l perlcyno -x
+
+
+   * Write regional tacs, deprecated:
 
    .. code-block:: bash
 
@@ -87,10 +94,9 @@ See Also:
 import argparse
 import ants
 
-import petpal.preproc.regional_tac_extraction
 
 from ..utils import useful_functions
-from ..preproc import image_operations_4d, motion_corr, register
+from ..preproc import image_operations_4d, motion_corr, register, regional_tac_extraction
 
 
 _PREPROC_EXAMPLES_ = r"""
@@ -102,7 +108,9 @@ Examples:
   - Register to anatomical:
     petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz --half-life 6584
   - Write regional tacs:
-    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -o /tmp/petpal_tacs --segmentation /path/to/segmentation.nii.gz --label-map-path /path/to/dseg.tsv
+    petpal-preproc write-tacs -i /path/to/input_img.nii.gz -p sub-001 -o /tmp/petpal_tacs -s /path/to/segmentation.nii.gz -l perlcyno -x
+  - Write tacs, deprecated:
+    petpal-preproc write-tacs-old -i /path/to/input_img.nii.gz -o /tmp/petpal_tacs --segmentation /path/to/segmentation.nii.gz --label-map-path /path/to/dseg.tsv
   - Half life weighted sum of series:
     petpal-preproc weighted-series-sum -i /path/to/input_img.nii.gz -o petpal_wss.nii.gz --half-life 6584 --start-time 1800 --end-time 7200
   - SUVR:
@@ -214,13 +222,39 @@ def _generate_args() -> argparse.ArgumentParser:
     parser_tac = subparsers.add_parser('write-tacs',
                                        help='Write ROI TACs from 4D PET using segmentation masks.')
     parser_tac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
+    parser_tac.add_argument('-p',
+                            '--patid',
+                            help='Name of participant, appended to beginning of TAC output files.',
+                            required=True,
+                            type=str)
     parser_tac.add_argument('-o',
                             '--out-tac-dir',
-                            default='petpal_tacs',
+                            required=True,
                             help='Output TAC folder dir')
     parser_tac.add_argument('-s', '--segmentation', required=True,
                             help='Path to segmentation image in anatomical space.')
     parser_tac.add_argument('-l',
+                            '--label-map',
+                            required=True,
+                            help='Label map for the seg image, either a preset option or path to a json file.'
+                                 'E.g. freesurfer, freesurfer_merge_lr, perlcyno, perlcyno_merge_lr, /path/to/my_label_map.json.')
+    parser_tac.add_argument('-x',
+                            '--excel',
+                            action='store_true',
+                            required=False,
+                            default=False,
+                            help='Option to store results as a single file table instead of one TAC file per region.')
+
+    parser_oldtac = subparsers.add_parser('write-tacs-old',
+                                          help='DEPRECATED Write ROI TACs from 4D PET using segmentation masks. Uses `dseg.tsv`file as label map.')
+    parser_oldtac.add_argument('-i', '--input-img',required=True,help='Path to input image.',type=str)
+    parser_oldtac.add_argument('-o',
+                            '--out-tac-dir',
+                            default='petpal_tacs',
+                            help='Output TAC folder dir')
+    parser_oldtac.add_argument('-s', '--segmentation', required=True,
+                            help='Path to segmentation image in anatomical space.')
+    parser_oldtac.add_argument('-l',
                             '--label-map-path',
                             required=True,
                             help='Path to label map dseg.tsv')
@@ -348,12 +382,20 @@ def main():
                               verbose=True,
                               half_life=args.half_life)
 
+    if command=='write_tacs_old':
+        regional_tac_extraction.write_tacs(input_image_path=args.input_img,
+                                           out_tac_dir=args.out_tac_dir,
+                                           segmentation_image_path=args.segmentation,
+                                           label_map_path=args.label_map_path,
+                                           verbose=True)
+
     if command=='write_tacs':
-        petpal.preproc.regional_tac_extraction.write_tacs(input_image_path=args.input_img,
-                                                          out_tac_dir=args.out_tac_dir,
-                                                          segmentation_image_path=args.segmentation,
-                                                          label_map_path=args.label_map_path,
-                                                          verbose=True)
+        tac_obj = regional_tac_extraction.WriteRegionalTacs(input_image_path=args.input_img,
+                                                  segmentation_path=args.segmentation,
+                                                  label_map=args.label_map)
+        tac_obj(out_tac_prefix=args.patid,
+                out_tac_dir=args.out_tac_dir,
+                one_tsv_per_region=not args.excel)
 
     if command=='warp_pet_atlas':
         register.warp_pet_atlas(input_image_path=args.input_img,
