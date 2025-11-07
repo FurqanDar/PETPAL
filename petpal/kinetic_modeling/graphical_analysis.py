@@ -20,12 +20,14 @@ TODO:
 
 from collections.abc import Callable
 from typing import Tuple
+import warnings
 import os
 import json
 import numba
 import numpy as np
-from ..utils.time_activity_curve import MultiTACAnalysisMixin
-from ..utils.time_activity_curve import safe_load_tac
+import pandas as pd
+from ..utils.time_activity_curve import MultiTACAnalysisMixin, safe_load_tac
+from ..utils.image_io import flatten_metadata
 
 
 @numba.njit()
@@ -652,6 +654,63 @@ def get_graphical_analysis_method_with_rsquared(method_name: str) -> Callable:
             raise ValueError(f"Invalid method_name! Must be either 'patlak', 'logan', 'alt_logan', 'logan_ref'. Got {method_name}")
 
 
+def km_multifit_analysis_to_tsv(analysis_props: list[dict],
+                                output_directory: str,
+                                output_filename_prefix: str,
+                                method: str,
+                                inferred_seg_labels: list[str]):
+    """
+    Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
+
+    Args:
+        analysis_props (list[dict]): List of fit results for each region.
+        output_directory (str): Directory where results are saved.
+        output_filename_prefix (str): Prefix for the output file.
+        method (str): Name of the method for the model.
+        inferred_seg_labels (list[str]): Names of each region used in the analysis.
+    
+    Raises:
+        RuntimeError: If 'run_analysis' method has not been called before save_analysis.
+    """
+    filename = f'{output_filename_prefix}_desc-{method}_fitprops.tsv'
+    filepath = os.path.join(output_directory, filename)
+    fit_table = pd.DataFrame()
+    for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
+        tmp_table = pd.DataFrame(flatten_metadata(fit_props),index=[seg_name])
+        fit_table = pd.concat([fit_table,tmp_table])
+    fit_table.T.to_csv(filepath, sep='\t')
+
+
+def km_multifit_analysis_to_jsons(analysis_props: list[dict],
+                                  output_directory: str,
+                                  output_filename_prefix: str,
+                                  method: str,
+                                  inferred_seg_labels: list[str]):
+    """
+    Saves the analysis results to a JSON file for each segment/TAC.
+
+    Args:
+        analysis_props (list[dict]): List of fit results for each region.
+        output_directory (str): Directory where results are saved.
+        output_filename_prefix (str): Prefix for the output files.
+        method (str): Name of the method for the model.
+        inferred_seg_labels (list[str]): Names of each region used in the analysis.
+
+    Raises:
+        RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
+    """
+    for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
+        filename = [output_filename_prefix,
+                    f'desc-{method}',
+                    f'seg-{seg_name}',
+                    'fitprops.json']
+        filename = '_'.join(filename)
+        filepath = os.path.join(output_directory, filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(obj=fit_props, fp=f, indent=4)
+
+
 class GraphicalAnalysis:
     """
     :class:`GraphicalAnalysis` to handle Graphical Analysis for time activity curve (TAC) data.
@@ -985,9 +1044,14 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
             self.analysis_props[tac_id]['EndFrameTime'] = end_time
             self.analysis_props[tac_id]['NumberOfPointsFit'] = points_fit
 
-    def save_analysis(self):
+    def save_analysis(self, output_as_tsv: bool=True, output_as_json: bool=False):
         """
-        Saves the analysis results to a JSON file for each segment.
+        Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
+
+        Args:
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
 
         Raises:
             RuntimeError: If 'run_analysis' method has not been called before save_analysis.
@@ -995,12 +1059,33 @@ class MultiTACGraphicalAnalysis(GraphicalAnalysis, MultiTACAnalysisMixin):
         if self.analysis_props[0]['RSquared'] is None:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
-        for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            filename = [self.output_filename_prefix,
-                        f'desc-{self.method}',
-                        f'seg-{seg_name}',
-                        'fitprops.json']
-            filename = '_'.join(filename)
-            filepath = os.path.join(self.output_directory, filename)
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(obj=fit_props, fp=f, indent=4)
+        if output_as_tsv:
+            km_multifit_analysis_to_jsons(analysis_props=self.analysis_props,
+                                          output_directory=self.output_directory,
+                                          output_filename_prefix=self.output_filename_prefix,
+                                          method=self.method,
+                                          inferred_seg_labels=self.inferred_seg_labels)
+        if output_as_json:
+            km_multifit_analysis_to_tsv(analysis_props=self.analysis_props,
+                                        output_directory=self.output_directory,
+                                        output_filename_prefix=self.output_filename_prefix,
+                                        method=self.method,
+                                        inferred_seg_labels=self.inferred_seg_labels)
+        if not output_as_tsv and not output_as_json:
+            warnings.warn('Both output_as_tsv and output_as_json set False. Results not written to '
+                          'file.')
+
+    def __call__(self, output_as_tsv: bool=True, output_as_json: bool=False, **run_kwargs):
+        """
+        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
+        analysis properties.
+        
+        Args:
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`run_analysis`.
+        """
+        self.run_analysis(**run_kwargs)
+        self.save_analysis(output_as_tsv=output_as_tsv, output_as_json=output_as_json)
