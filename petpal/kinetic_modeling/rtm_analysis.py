@@ -539,7 +539,7 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
                                         inferred_seg_labels=self.inferred_seg_labels)
         if not output_as_tsv and not output_as_json:
             warnings.warn('Both output_as_tsv and output_as_json set False. Results not written to '
-                          ' file.')
+                          'file.')
 
     def __call__(self, output_as_tsv: bool=True, output_as_json: bool=False, **run_kwargs):
         """
