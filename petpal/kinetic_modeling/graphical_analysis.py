@@ -26,6 +26,7 @@ import numba
 import numpy as np
 import pandas as pd
 from ..utils.time_activity_curve import MultiTACAnalysisMixin, safe_load_tac
+from ..utils.image_io import flatten_metadata
 
 
 @numba.njit()
@@ -674,7 +675,7 @@ def km_multifit_analysis_to_tsv(analysis_props: list[dict],
     filepath = os.path.join(output_directory, filename)
     fit_table = pd.DataFrame()
     for seg_name, fit_props in zip(inferred_seg_labels, analysis_props):
-        tmp_table = pd.DataFrame(fit_props,index=[seg_name])
+        tmp_table = pd.DataFrame(flatten_metadata(fit_props),index=[seg_name])
         fit_table = pd.concat([fit_table,tmp_table])
     fit_table.T.to_csv(filepath, sep='\t')
 
