@@ -122,7 +122,7 @@ _CONV_TCM_MODELS_CONFIGS = {
             ),
     pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac: ConvTcmModelConfig(
             func=pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
-            param_names=['k1', 'k2', 'k3', 'k4', 'vb'],
+            param_names=['k1', 'k2', 'k3', 'vb'],
             default_bounds=np.array([
                 [0.2, 1e-8, 0.5],  # k1
                 [0.1, 1e-8, 0.5],  # k2
