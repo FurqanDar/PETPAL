@@ -345,6 +345,10 @@ def main():
         preproc_parser.print_help()
         raise SystemExit('Exiting without command')
 
+    if len(args.motion_target)==1:
+        motion_target = args.motion_target[0]
+    else:
+        motion_target = args.motion_target
 
     command = str(args.command).replace('-','_')
 
@@ -363,17 +367,12 @@ def main():
                                                    verbose=True)
 
     if command=='motion_correction':
-        if len(args.motion_target)==1:
-            motion_target = args.motion_target[0]
-        else:
-            motion_target = args.motion_target
         motion_corr.motion_corr(input_image_4d_path=args.input_img,
                                 out_image_path=args.out_img,
                                 motion_target_option=motion_target,
                                 verbose=True,
                                 type_of_transform=args.transform_type,
                                 half_life=args.half_life)
-
     if command=='register_pet':
         register.register_pet(input_reg_image_path=args.input_img,
                               out_image_path=args.out_img,
