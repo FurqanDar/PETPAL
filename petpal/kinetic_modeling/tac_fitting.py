@@ -578,82 +578,10 @@ class TACFitterWithoutBloodVolume(TACFitter):
         """
         
         super().__init__(pTAC, tTAC, weights, tcm_func, fit_bounds, resample_num, aif_fit_thresh_in_mins, max_iters)
-        self.get_tcm_func_properties(tcm_func)
-        self.set_bounds_and_initial_guesses(fit_bounds)
-    
-    def get_tcm_func_properties(self, tcm_func: Callable) -> None:
-        r"""
-        Overridden method to define a TCM function excluding blood volume.
-        
-        The ``tcm_func`` should be one of the following:
-        
-            * :func:`gen_tac_1tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_1tcm_cpet_from_tac>`
-            * :func:`gen_tac_2tcm_with_k4zero_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_with_k4zero_cpet_from_tac>`
-            * :func:`gen_tac_2tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_cpet_from_tac>`
-
-        Args:
-            tcm_func (Callable): The chosen TCM function model.
-
-        Side-effect:
-            Sets ``tcm_func``, ``fit_param_names``, and ``fit_param_number`` attributes.
-            
-        """
-        assert tcm_func in [pet_tcms.gen_tac_1tcm_cpet_from_tac,
-                            pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
-                            pet_tcms.gen_tac_2tcm_cpet_from_tac], (
-            "`tcm_func should be one of `pet_tcms.gen_tac_1tcm_cpet_from_tac`, "
-            "`pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac`, "
-            "`pet_tcms.gen_tac_2tcm_cpet_from_tac`")
-
-        self.tcm_func = tcm_func
-        self.fit_param_names = _get_fitting_params_for_tcm_func(self.tcm_func)[:-1]
-        self.fit_param_number = len(self.fit_param_names)
-    
-    def set_bounds_and_initial_guesses(self, fit_bounds: np.ndarray) -> None:
-        r"""
-        Overridden method to set bounds and initial guesses excluding blood volume parameter.
-
-        Args:
-            fit_bounds: The input bounds for fitting parameters.
-
-        Side Effect:
-            - Sets ``initial_guesses``, ``bounds_lo``, ``bounds_hi``, and ``bounds``, ignoring the last parameter
-              (blood volume).
-              
-        """
-        assert self.tcm_func is not None, "This method should be run after `get_tcm_func_properties`"
-        if fit_bounds is not None:
-            assert fit_bounds.shape == (self.fit_param_number, 3), ("Fit bounds has the wrong shape. For each potential"
-                                                                    " fitting parameter in `tcm_func`, we require the "
-                                                                    "tuple: `(initial, lower, upper)`.")
-            self.bounds = fit_bounds.copy()
-        else:
-            bounds = np.zeros((self.fit_param_number, 3), float)
-            for pid, _param in enumerate(bounds[:]):
-                bounds[pid] = [0.1, 1.0e-8, 5.0]
-            self.bounds = bounds.copy()
-
-        self.initial_guesses = self.bounds[:, 0]
-        self.bounds_lo = self.bounds[:, 1]
-        self.bounds_hi = self.bounds[:, 2]
-
-    def fitting_func(self, x: np.ndarray, *params) -> np.ndarray:
-        r"""
-        Overridden method to fit the TCM model setting ``vb=0.0`` explicitly.
-        
-        It calculates the results of the TCM function with the given times and parameters using the resampled pTAC (with
-        ``vb=0.0``).
-
-        Args:
-            x: The independent data (time-points for TAC).
-            *params: Parameters of TCM function (excluding blood volume).
-
-        Returns:
-            The values of the TCM function with the given parameters at the given x-values,
-            with blood volume (``vb``) set to 0.
-        """
-        return self.tcm_func(x, self.p_tac_vals, *params, vb=0.0)[1]
-
+        warnings.warn("TACFitterWithoutBloodVolume is deprecated and will be removed in"
+                      "a future update. Please use TACFitter instead. This class behaves just like"
+                      "TACFitter currently.",
+                      DeprecationWarning, stacklevel=2)
 
 class TCMAnalysis(object):
     r"""
