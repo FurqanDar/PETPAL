@@ -106,7 +106,8 @@ class ConvTcmModelConfig(TcmModelConfig):
     _NAME_TO_FUNC: dict[str, Callable] = {
         '1tcm'       : pet_tcms.gen_tac_1tcm_cpet_from_tac,
         '2tcm-k4zero': pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
-        '2tcm'       : pet_tcms.gen_tac_2tcm_cpet_from_tac
+        '2tcm'       : pet_tcms.gen_tac_2tcm_cpet_from_tac,
+        'serial-2tcm': pet_tcms.gen_tac_2tcm_cpet_from_tac
         }
 
 
