@@ -75,9 +75,10 @@ def _get_number_of_fit_params_for_tcm_func(f: Callable) -> int:
     return len(_get_fitting_params_for_tcm_func(f))
 
 class TcmModelConfig:
-    def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray):
+    def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray, pretty_param_names: list[str] | None = None):
         self.func = func
         self.param_names = param_names
+        self.pretty_param_names = pretty_param_names if pretty_param_names is not None else param_names
         self.default_bounds = default_bounds
         self.num_params = len(param_names)
 
@@ -750,7 +751,7 @@ class TCMAnalysis(object):
             KeyError: If the provided tissue compartment model name does not correspond to any known models.
         
         See Also:
-            * :func:`gen_tac_1tcm_cpet_from_tac<pet pal.tcms_as_convolutions.gen_tac_1tcm_cpet_from_tac>`
+            * :func:`gen_tac_1tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_1tcm_cpet_from_tac>`
             * :func:`gen_tac_2tcm_with_k4zero_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_with_k4zero_cpet_from_tac>`
             * :func:`gen_tac_2tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_cpet_from_tac>`
             * :class:`TACFitter`
@@ -1060,7 +1061,8 @@ _FRAME_AVGD_TCM_CONFIGS = {
                 [0.2, 1e-8, 0.5],  # k1
                 [0.1, 1e-8, 0.5],  # k2
                 [0.05, 1e-8, 0.5]  # vb
-                ])
+                ]),
+            pretty_param_names=[r'$K_1$', r'$k_2$', r'$V_B$'],
             ),
     pet_tcms.model_serial_2tcm_frame_avgd: FrameAvgdTcmModelConfig(
             func=pet_tcms.model_serial_2tcm_frame_avgd,
@@ -1071,7 +1073,8 @@ _FRAME_AVGD_TCM_CONFIGS = {
                 [0.1, 1e-8, 0.5],  # k3
                 [0.01, 1e-8, 0.1], # k4
                 [0.05, 1e-8, 0.5]  # vb
-                ])
+                ]),
+            pretty_param_names=[r'$K_1$', r'$k_2$', r'$k_3$', r'$k_4$', r'$V_B$'],
             )
     }
 
@@ -1206,63 +1209,177 @@ class FrameAveragedTACFitter():
         self.run_fit()
 
 
-class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
+class FrameAveragedTCMAnalysis():
     def __init__(self,
                  input_tac_path: str,
-                 roi_tacs_dir: str,
+                 roi_tac_path: str,
+                 scan_info_path: str,
                  output_directory: str,
                  output_filename_prefix: str,
                  compartment_model: str,
-                 image_metadata_path: str,
                  parameter_bounds: None | np.ndarray = None,
                  weights: float | None | np.ndarray = None,
-                 resample_num: int = 4096,
-                 aif_fit_thresh_in_mins: float = 40.0,
-                 max_func_iters: int = 2500,
-                 ignore_blood_volume: bool = False):
-        super().__init__(input_tac_path=input_tac_path,
-                         roi_tacs_dir=roi_tacs_dir,
-                         output_directory=output_directory,
-                         output_filename_prefix=output_filename_prefix,
-                         compartment_model=compartment_model,
-                         parameter_bounds=parameter_bounds,
-                         weights=weights,
-                         resample_num=resample_num,
-                         aif_fit_thresh_in_mins=aif_fit_thresh_in_mins,
-                         max_func_iters=max_func_iters,
-                         ignore_blood_volume=ignore_blood_volume)
-        self.resample_number = resample_num
-        self.fitting_obj = FrameAveragedTACFitter
-        self.image_metadata_path = os.path.abspath(image_metadata_path)
-        self.scan_info = ScanTimingInfo.from_nifti(self.image_metadata_path)
+                 resample_num: int = 8192):
+        self.input_tac_path = os.path.abspath(input_tac_path)
+        self.roi_tac_path = os.path.abspath(roi_tac_path)
+        self.scan_info_path = os.path.abspath(scan_info_path)
+        self.output_directory = os.path.abspath(output_directory)
+        self.output_filename_prefix = os.path.abspath(output_filename_prefix)
+        self.compartment_model = self.validated_tcm_name(compartment_model)
+        self.short_tcm_name = "".join(self.compartment_model.split("_"))
+        self._tcm_func = self.validated_tcm_function(self.compartment_model)
+        self._model_config = _FRAME_AVGD_TCM_CONFIGS[self._tcm_func]
+        self.bounds = parameter_bounds
+        self.weights = weights
+        self.resample_num = resample_num
+        self.fitter_class = FrameAveragedTACFitter
+        self.analysis_props: dict = self.init_analysis_props()
+        self.fit_results: None | tuple | list= None
+        self._has_analysis_been_run: bool = False
+
+    def init_analysis_props(self) -> dict:
+        props = {
+            'FilePathPTAC'            : self.input_tac_path,
+            'FilePathTTAC'            : self.roi_tac_path,
+            'TissueCompartmentModel'  : self.compartment_model,
+            'FitProperties'           : {
+                'FitValues'    : [],
+                'FitStdErr'    : [],
+                'Bounds'       : [],
+                'ResampleNum'  : self.resample_num,
+                }
+            }
+
+        return props
+
+    @staticmethod
+    def validated_tcm_name(compartment_model: str) -> str:
+        FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
+        return FrameAvgdTcmModelConfig.normalize_name(compartment_model)
+
+    @staticmethod
+    def validated_tcm_function(compartment_model: str) -> Callable:
+        return FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
+
+    def __call__(self, pretty_params: bool = False):
+        self.run_analysis(pretty_params=pretty_params)
+        self.save_analysis()
+
+    def run_analysis(self, pretty_params: bool = False):
+        self.calculate_fit()
+        self.calculate_fit_properties(pretty_params=pretty_params)
+        self._has_analysis_been_run = True
+
+    def save_analysis(self):
+        if not self._has_analysis_been_run:
+            raise RuntimeError("`run_analysis` must be called before saving analysis.")
+        file_name_prefix = os.path.join(self.output_directory,
+                                        f"{self.output_filename_prefix}_desc"
+                                        f"-{self.short_tcm_name}")
+        analysis_props_file = f"{file_name_prefix}_fitprops.json"
+        with open(analysis_props_file, 'w', encoding='utf-8') as f:
+            json.dump(obj=self.analysis_props, fp=f, indent=4)
+
+    def calculate_fit(self):
+        fitting_class = self.fitter_class(input_tac=TimeActivityCurve.from_tsv(self.input_tac_path),
+                                          roi_tac=TimeActivityCurve.from_tsv(self.roi_tac_path),
+                                          scan_info=ScanTimingInfo.from_nifti(self.scan_info_path),
+                                          tcm_model_func=self._tcm_func,
+                                          fit_bounds=self.bounds,
+                                          fit_weights=self.weights,
+                                          tac_resample_num=self.resample_num,
+                                          )
+        fitting_class()
+        self.fit_results = fitting_class.fit_results
+        self.bounds = fitting_class.bounds if self.bounds is None else self.bounds
+
+    def calculate_fit_properties(self, pretty_params: bool = False):
+        self.update_props_with_formatted_fit_values(fit_values=self.fit_results[0],
+                                                    fit_covars=self.fit_results[1],
+                                                    param_bounds=self.bounds,
+                                                    fit_props_dict=self.analysis_props,
+                                                    pretty_params=pretty_params)
+
+    def update_props_with_formatted_fit_values(self,
+                                               fit_values: np.ndarray,
+                                               fit_covars: np.ndarray,
+                                               param_bounds: np.ndarray,
+                                               fit_props_dict: dict,
+                                               pretty_params: bool = False) -> None:
+        try:
+            fit_stderr = np.sqrt(np.diagonal(fit_covars))
+        except ValueError:
+            fit_stderr = np.nan * np.ones_like(fit_values)
+
+        param_names = self._model_config.pretty_param_names if pretty_params else self._model_config.param_names
+
+        formatted_values = {name:value for name, value in zip(param_names, fit_values.round(5).tolist())}
+        formatted_stderr = {name: value for name, value in zip(param_names, fit_stderr.round(5).tolist())}
+
+        fit_props_dict["FitProperties"]["FitValues"] = formatted_values
+        fit_props_dict["FitProperties"]["FitStdErr"] = formatted_stderr
+
+        _format_func = self._generate_formatted_bounds
+        fit_props_dict["FitProperties"]["Bounds"] = _format_func(param_bounds=param_bounds,
+                                                                 pretty_params=pretty_params)
+
+    def _generate_formatted_bounds(self, param_bounds: np.ndarray, pretty_params: bool = False) -> dict:
+        param_names = self._model_config.pretty_param_names if pretty_params else self._model_config.param_names
+        formatted_bounds = {param: {'initial': val[0], 'lo': val[1], 'hi': val[2]} for param, val in
+                            zip(param_names, param_bounds)}
+        return formatted_bounds
+
+class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysisMixin):
+    def __init__(self,
+                 input_tac_path: str,
+                 roi_tacs_dir: str,
+                 scan_info_path: str,
+                 output_directory: str,
+                 output_filename_prefix: str,
+                 compartment_model: str,
+                 parameter_bounds: None | np.ndarray = None,
+                 weights: float | None | np.ndarray = None,
+                 resample_num: int = 4096):
+        MultiTACAnalysisMixin.__init__(self,
+                                       input_tac_path=input_tac_path,
+                                       tacs_dir=roi_tacs_dir, )
+        FrameAveragedTCMAnalysis.__init__(self,
+                                          input_tac_path=input_tac_path,
+                                          roi_tac_path=roi_tacs_dir,
+                                          scan_info_path=scan_info_path,
+                                          output_directory=output_directory,
+                                          output_filename_prefix=output_filename_prefix,
+                                          compartment_model=compartment_model,
+                                          parameter_bounds=parameter_bounds,
+                                          weights=weights,
+                                          resample_num=resample_num)
+        self.fit_results = []
         self.fit_tacs: list[TimeActivityCurve] = []
         self.update_analysis_props()
 
+    def init_analysis_props(self) -> list[dict]:
+        num_of_tacs = self.num_of_tacs
+        analysis_props = [FrameAveragedTCMAnalysis.init_analysis_props(self) for a_tac in range(num_of_tacs)]
+        for tac_id, a_prop_dict in enumerate(analysis_props):
+            a_prop_dict['FilePathTTAC'] = os.path.abspath(self.tacs_files_list[tac_id])
+            a_prop_dict['FilePathImageOrMetadata'] = self.scan_info_path
+        return analysis_props
+
     def update_analysis_props(self):
         for tac_id, a_prop_dict in enumerate(self.analysis_props):
-            a_prop_dict['FilePathImageOrMetadata'] = self.image_metadata_path
-
-    @staticmethod
-    def validated_tcm(compartment_model: str) -> str:
-        normalized = FrameAvgdTcmModelConfig.normalize_name(compartment_model)
-        FrameAvgdTcmModelConfig.resolve_model_name(normalized)
-        return normalized
-
-    @staticmethod
-    def _get_tcm_function(compartment_model: str) -> Callable:
-        return FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
-
+            a_prop_dict['FilePathImageOrMetadata'] = self.scan_info_path
 
     def calculate_fit(self):
         p_tac = TimeActivityCurve.from_tsv(self.input_tac_path)
+        scan_info = ScanTimingInfo.from_nifti(self.scan_info_path)
         fit_obj = None
         for tac_id, a_tac in enumerate(self.tacs_files_list):
             t_tac = TimeActivityCurve.from_tsv(a_tac)
-            fit_obj = self.fitting_obj(input_tac=p_tac,
+            fit_obj = self.fitter_class(input_tac=p_tac,
                                        roi_tac=t_tac,
-                                       scan_info=self.scan_info,
+                                       scan_info=scan_info,
                                        tcm_func=self._tcm_func,
-                                       resample_number=self.resample_number,
+                                       resample_number=self.resample_num,
                                        )
             fit_obj.run_fit()
             self.fit_results.append(fit_obj.fit_results)
@@ -1271,24 +1388,14 @@ class FrameAveragedMultiTACTCMAnalysis(MultiTACTCMAnalysis):
         if (self.bounds is None) and (fit_obj is not None):
             self.bounds = fit_obj.bounds
 
-    def _generate_pretty_params(self, results: np.ndarray) -> dict:
-        k_vals = {f'k_{n + 1}': val for n, val in enumerate(results[:-1])}
-        vb = {'vb': results[-1]}
-        return {**k_vals, **vb}
+    def calculate_fit_properties(self, pretty_params: bool = False):
+        for fit_results, fit_props in zip(self.fit_results, self.analysis_props):
+            self.update_props_with_formatted_fit_values(fit_values=fit_results[0],
+                                                        fit_covars=fit_results[1],
+                                                        fit_props_dict=fit_props,
+                                                        param_bounds=self.bounds,
+                                                        pretty_params=pretty_params)
 
-    def update_props_with_formatted_fit_values(self, fit_results, fit_props_dict: dict):
-        fit_params, fit_covariances = fit_results
-        try:
-            fit_stderr = np.sqrt(np.diagonal(fit_covariances))
-        except ValueError:
-            fit_stderr = np.nan * np.ones(len(fit_params))
-        format_func = self._generate_pretty_params
-
-        fit_props_dict["FitProperties"]["FitValues"] = format_func(fit_params.round(5))
-        fit_props_dict["FitProperties"]["FitStdErr"] = format_func(fit_stderr.round(5))
-
-        format_func = self._generate_pretty_bounds
-        fit_props_dict["FitProperties"]["Bounds"] = format_func(self.bounds.round(5))
 
     def save_analysis(self):
         super().save_analysis()
