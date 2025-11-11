@@ -665,9 +665,9 @@ class TCMAnalysis(object):
         self.ignore_blood_volume = ignore_blood_volume
         self.weights: Union[float, None, np.ndarray] = weights
         if self.ignore_blood_volume:
-            self.fitting_obj = TACFitterWithoutBloodVolume
+            self.fitter_class = TACFitterWithoutBloodVolume
         else:
-            self.fitting_obj = TACFitter
+            self.fitter_class = TACFitter
         self.analysis_props: dict = self.init_analysis_props()
         self.fit_results: Union[None, tuple[np.ndarray, np.ndarray]] = None
         self._has_analysis_been_run: bool = False
@@ -731,10 +731,8 @@ class TCMAnalysis(object):
             ValueError: If the provided compartment model is not one of '1tcm', '2tcm-k4zero' or 'serial-2tcm'
             
         """
-        tcm = compartment_model.lower().replace(' ', '-')
-        if tcm not in ['1tcm', '2tcm-k4zero', 'serial-2tcm']:
-            raise ValueError("compartment_model must be one of '1tcm', '2tcm-k4zero', or 'serial-2tcm'")
-        return tcm
+        ConvTcmModelConfig.resolve_model_name(compartment_model)
+        return ConvTcmModelConfig.normalize_name(compartment_model)
 
     @staticmethod
     def _get_tcm_function(compartment_model: str) -> Callable:
@@ -758,13 +756,7 @@ class TCMAnalysis(object):
             * :class:`TACFitterWithoutBloodVolume`
         
         """
-        tcm_funcs = {
-                   '1tcm': pet_tcms.gen_tac_1tcm_cpet_from_tac,
-                   '2tcm-k4zero': pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
-                   'serial-2tcm': pet_tcms.gen_tac_2tcm_cpet_from_tac
-                    }
-
-        return tcm_funcs[compartment_model]
+        return ConvTcmModelConfig.resolve_model_name(compartment_model)
 
     def run_analysis(self):
         r"""
@@ -849,17 +841,17 @@ class TCMAnalysis(object):
         """
         p_tac = safe_load_tac(self.input_tac_path)
         t_tac = safe_load_tac(self.roi_tac_path)
-        self.fitting_obj = self.fitting_obj(pTAC=p_tac, tTAC=t_tac,
-                                            weights=self.weights,
-                                            tcm_func=self._tcm_func,
-                                            fit_bounds=self.bounds,
-                                            max_iters=self.max_func_iters,
-                                            aif_fit_thresh_in_mins=self.input_tac_fitting_thresh_in_mins,
-                                            resample_num=self.tac_resample_num)
-        self.fitting_obj.run_fit()
-        self.fit_results = self.fitting_obj.fit_results
+        self.fitter_class = self.fitter_class(pTAC=p_tac, tTAC=t_tac,
+                                              weights=self.weights,
+                                              tcm_func=self._tcm_func,
+                                              fit_bounds=self.bounds,
+                                              max_iters=self.max_func_iters,
+                                              aif_fit_thresh_in_mins=self.input_tac_fitting_thresh_in_mins,
+                                              resample_num=self.tac_resample_num)
+        self.fitter_class.run_fit()
+        self.fit_results = self.fitter_class.fit_results
         if self.bounds is None:
-            self.bounds = self.fitting_obj.bounds
+            self.bounds = self.fitter_class.bounds
 
     def _generate_pretty_params(self, results: np.ndarray) -> dict:
         r"""
@@ -998,14 +990,14 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
         fit_obj = None
         for a_tac in self.tacs_files_list:
             t_tac = safe_load_tac(a_tac)
-            fit_obj = self.fitting_obj(pTAC=p_tac,
-                                       tTAC=t_tac,
-                                       weights=self.weights,
-                                       tcm_func=self._tcm_func,
-                                       fit_bounds=self.bounds,
-                                       max_iters=self.max_func_iters,
-                                       aif_fit_thresh_in_mins=self.input_tac_fitting_thresh_in_mins,
-                                       resample_num=self.tac_resample_num)
+            fit_obj = self.fitter_class(pTAC=p_tac,
+                                        tTAC=t_tac,
+                                        weights=self.weights,
+                                        tcm_func=self._tcm_func,
+                                        fit_bounds=self.bounds,
+                                        max_iters=self.max_func_iters,
+                                        aif_fit_thresh_in_mins=self.input_tac_fitting_thresh_in_mins,
+                                        resample_num=self.tac_resample_num)
             fit_obj.run_fit()
             self.fit_results.append(fit_obj.fit_results)
         if (self.bounds is None) and (fit_obj is not None):
