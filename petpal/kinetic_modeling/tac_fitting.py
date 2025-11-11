@@ -75,7 +75,37 @@ def _get_number_of_fit_params_for_tcm_func(f: Callable) -> int:
     return len(_get_fitting_params_for_tcm_func(f))
 
 class TcmModelConfig:
+    r"""
+    Base configuration class for Tissue Compartment Model (TCM) specifications.
+
+    This class encapsulates the essential properties of a TCM including the model function,
+    parameter names, default bounds, and pretty-printed parameter names for visualization.
+    It provides utilities for normalizing model names and resolving model names to their
+    corresponding functions.
+
+    Attributes:
+        func (Callable): The TCM function implementation.
+        param_names (list[str]): List of parameter names (e.g., ['k1', 'k2', 'vb']).
+        pretty_param_names (list[str]): List of formatted parameter names for display (e.g., [r'$K_1$', r'$k_2$']).
+        default_bounds (np.ndarray): Default bounds for parameters with shape (num_params, 3) where each row
+            contains [initial_guess, lower_bound, upper_bound].
+        num_params (int): Number of parameters in the model.
+
+    See Also:
+        * :class:`~.ConvTcmModelConfig`
+        * :class:`~.FrameAvgdTcmModelConfig`
+    """
     def __init__(self, func: Callable, param_names: list[str], default_bounds: np.ndarray, pretty_param_names: list[str] | None = None):
+        r"""
+        Initialize a TCM model configuration.
+
+        Args:
+            func (Callable): The tissue compartment model function.
+            param_names (list[str]): List of parameter names.
+            default_bounds (np.ndarray): Default parameter bounds array with shape (num_params, 3).
+            pretty_param_names (list[str] or None, optional): Pretty-printed parameter names for display.
+                If None, uses param_names. Defaults to None.
+        """
         self.func = func
         self.param_names = param_names
         self.pretty_param_names = pretty_param_names if pretty_param_names is not None else param_names
@@ -86,14 +116,58 @@ class TcmModelConfig:
 
     @staticmethod
     def normalize_name(name: str) -> str:
+        r"""
+        Normalize a model name to a standard format.
+
+        Converts the name to lowercase and replaces spaces and underscores with hyphens
+        for consistent model name lookup.
+
+        Args:
+            name (str): The model name to normalize.
+
+        Returns:
+            str: The normalized model name.
+
+        Example:
+            .. code-block:: python
+
+                from petpal.kinetic_modeling.tac_fitting import TcmModelConfig
+                TcmModelConfig.normalize_name("Serial 2TCM")  # Returns "serial-2tcm"
+                TcmModelConfig.normalize_name("1TCM")  # Returns "1tcm"
+        """
         return name.lower().replace(' ', '_').replace('_', '-')
 
     @classmethod
     def valid_model_names(cls) -> list[str]:
+        r"""
+        Get a sorted list of all valid model names.
+
+        Returns:
+            list[str]: Sorted list of valid model name strings.
+        """
         return sorted(set(cls._NAME_TO_FUNC.keys()))
 
     @classmethod
     def resolve_model_name(cls, model_name: str) -> Callable:
+        r"""
+        Resolve a model name string to its corresponding TCM function.
+
+        Args:
+            model_name (str): The name of the compartment model.
+
+        Returns:
+            Callable: The TCM function corresponding to the model name.
+
+        Raises:
+            ValueError: If the model_name does not correspond to a known model.
+
+        Example:
+            .. code-block:: python
+
+                from petpal.kinetic_modeling.tac_fitting import TcmModelConfig
+                func = TcmModelConfig.resolve_model_name("2tcm")
+                # Returns the 2TCM function
+        """
         norm_name = cls.normalize_name(model_name)
         try:
             return cls._NAME_TO_FUNC[norm_name]
@@ -303,8 +377,8 @@ class TACFitter(object):
         self.fit_results = None
 
     def _validate_inputs(self, input_tac: np.ndarray, roi_tac: np.ndarray, tcm_func: Callable):
-        assert input_tac.ndim == 2, "Input TAC must be a 2D array of times and activity"
-        assert roi_tac.ndim == 2, "Input TAC must be a 2D array of times and activity"
+        assert np.asarray(input_tac).ndim == 2, "Input TAC must be a 2D array of times and activity"
+        assert np.asarray(roi_tac).ndim == 2, "Input TAC must be a 2D array of times and activity"
 
         if tcm_func not in self.SUPPORTED_MODELS:
             raise ValueError(
@@ -1404,7 +1478,6 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
 
     def _save_fit_props(self):
         for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-
             filename = [self.output_filename_prefix,
                         f'desc-{self.short_tcm_name}',
                         f'seg-{seg_name}',
