@@ -1224,9 +1224,9 @@ class FrameAveragedTCMAnalysis():
         self.roi_tac_path = os.path.abspath(roi_tac_path)
         self.scan_info_path = os.path.abspath(scan_info_path)
         self.output_directory = os.path.abspath(output_directory)
-        self.output_filename_prefix = os.path.abspath(output_filename_prefix)
+        self.output_filename_prefix = output_filename_prefix
         self.compartment_model = self.validated_tcm_name(compartment_model)
-        self.short_tcm_name = "".join(self.compartment_model.split("_"))
+        self.short_tcm_name = "".join(self.compartment_model.split("-"))
         self._tcm_func = self.validated_tcm_function(self.compartment_model)
         self._model_config = _FRAME_AVGD_TCM_CONFIGS[self._tcm_func]
         self.bounds = parameter_bounds
@@ -1281,17 +1281,17 @@ class FrameAveragedTCMAnalysis():
             json.dump(obj=self.analysis_props, fp=f, indent=4)
 
     def calculate_fit(self):
-        fitting_class = self.fitter_class(input_tac=TimeActivityCurve.from_tsv(self.input_tac_path),
-                                          roi_tac=TimeActivityCurve.from_tsv(self.roi_tac_path),
-                                          scan_info=ScanTimingInfo.from_nifti(self.scan_info_path),
-                                          tcm_model_func=self._tcm_func,
-                                          fit_bounds=self.bounds,
-                                          fit_weights=self.weights,
-                                          tac_resample_num=self.resample_num,
-                                          )
-        fitting_class()
-        self.fit_results = fitting_class.fit_results
-        self.bounds = fitting_class.bounds if self.bounds is None else self.bounds
+        fitter_cls = self.fitter_class(input_tac=TimeActivityCurve.from_tsv(self.input_tac_path),
+                                       roi_tac=TimeActivityCurve.from_tsv(self.roi_tac_path),
+                                       scan_info=ScanTimingInfo.from_nifti(self.scan_info_path),
+                                       tcm_model_func=self._tcm_func,
+                                       fit_bounds=self.bounds,
+                                       fit_weights=self.weights,
+                                       tac_resample_num=self.resample_num,
+                                       )
+        fitter_cls()
+        self.fit_results = fitter_cls.fit_results
+        self.bounds = fitter_cls.bounds if self.bounds is None else self.bounds
 
     def calculate_fit_properties(self, pretty_params: bool = False):
         self.update_props_with_formatted_fit_values(fit_values=self.fit_results[0],
@@ -1372,21 +1372,21 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
     def calculate_fit(self):
         p_tac = TimeActivityCurve.from_tsv(self.input_tac_path)
         scan_info = ScanTimingInfo.from_nifti(self.scan_info_path)
-        fit_obj = None
+        fitter_cls = None
         for tac_id, a_tac in enumerate(self.tacs_files_list):
             t_tac = TimeActivityCurve.from_tsv(a_tac)
-            fit_obj = self.fitter_class(input_tac=p_tac,
-                                       roi_tac=t_tac,
-                                       scan_info=scan_info,
-                                       tcm_func=self._tcm_func,
-                                       resample_number=self.resample_num,
-                                       )
-            fit_obj.run_fit()
-            self.fit_results.append(fit_obj.fit_results)
-            self.fit_tacs.append(fit_obj.fit_tac)
-            self.analysis_props[tac_id]['FitProperties']['Sum Of Squared Residuals'] = fit_obj.fit_sum_of_square_residuals
-        if (self.bounds is None) and (fit_obj is not None):
-            self.bounds = fit_obj.bounds
+            fitter_cls = self.fitter_class(input_tac=p_tac,
+                                           roi_tac=t_tac,
+                                           scan_info=scan_info,
+                                           tcm_model_func=self._tcm_func,
+                                           tac_resample_num=self.resample_num,
+                                           )
+            fitter_cls.run_fit()
+            self.fit_results.append(fitter_cls.fit_results)
+            self.fit_tacs.append(fitter_cls.fit_tac)
+            # self.analysis_props[tac_id]['FitProperties']['Sum Of Squared Residuals'] = fitter_cls.fit_sum_of_square_residuals
+        if (self.bounds is None) and (fitter_cls is not None):
+            self.bounds = fitter_cls.bounds
 
     def calculate_fit_properties(self, pretty_params: bool = False):
         for fit_results, fit_props in zip(self.fit_results, self.analysis_props):
@@ -1398,9 +1398,21 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
 
 
     def save_analysis(self):
-        super().save_analysis()
+        self._save_fit_props()
         self._save_multitacs_table()
         self._save_multifitprops_table()
+
+    def _save_fit_props(self):
+        for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
+
+            filename = [self.output_filename_prefix,
+                        f'desc-{self.short_tcm_name}',
+                        f'seg-{seg_name}',
+                        'fitprops.json']
+            filename = '_'.join(filename)
+            filepath = os.path.join(self.output_directory, filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(obj=fit_props, fp=f, indent=4)
 
     def _save_multitacs_table(self):
         tacs_header: list[str] | str = ['Time(mins)']
