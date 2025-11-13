@@ -1666,8 +1666,7 @@ class FrameAveragedTCMAnalysis():
         return FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
 
     def __call__(self, pretty_params: bool = False):
-        r"""
-        Execute the complete analysis workflow.
+        r"""Execute the complete analysis workflow.
 
         Convenience method that runs the analysis and saves results.
 
@@ -1686,11 +1685,37 @@ class FrameAveragedTCMAnalysis():
         self.save_analysis()
 
     def run_analysis(self, pretty_params: bool = False):
+        r"""Run the fitting analysis workflow.
+
+        Executes :meth:`calculate_fit` and :meth:`calculate_fit_properties`, then sets
+        the analysis-has-been-run flag.
+
+        Args:
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names.
+                Defaults to False.
+
+        Side Effects:
+            - Populates fit_results with fitted parameters and covariances.
+            - Updates analysis_props with formatted fit values.
+            - Sets _has_analysis_been_run to True.
+        """
         self.calculate_fit()
         self.calculate_fit_properties(pretty_params=pretty_params)
         self._has_analysis_been_run = True
 
     def save_analysis(self):
+        r"""Save analysis results to a JSON file.
+
+        Saves the analysis_props dictionary containing fit results and metadata to a JSON file
+        in the output directory. The filename is constructed from the output prefix, model name,
+        and '_fitprops.json' suffix.
+
+        Raises:
+            RuntimeError: If :meth:`run_analysis` has not been called before this method.
+
+        Side Effects:
+            Writes a JSON file to the output directory.
+        """
         if not self._has_analysis_been_run:
             raise RuntimeError("`run_analysis` must be called before saving analysis.")
         file_name_prefix = os.path.join(self.output_directory,
@@ -1701,6 +1726,20 @@ class FrameAveragedTCMAnalysis():
             json.dump(obj=self.analysis_props, fp=f, indent=4)
 
     def calculate_fit(self):
+        r"""Perform the TCM fit on the loaded TAC data.
+
+        Loads TACs and scan timing from files, creates a :class:`FrameAveragedTACFitter` instance,
+        runs the fit, and stores results.
+
+        Side Effects:
+            - Populates fit_results with fitted parameters and covariance matrix.
+            - Sets bounds if they were None initially.
+
+        See Also:
+            * :class:`~.FrameAveragedTACFitter`
+            * :class:`~.TimeActivityCurve`
+            * :class:`~.ScanTimingInfo`
+        """
         fitter_cls = self.fitter_class(input_tac=TimeActivityCurve.from_tsv(self.input_tac_path),
                                        roi_tac=TimeActivityCurve.from_tsv(self.roi_tac_path),
                                        scan_info=ScanTimingInfo.from_nifti(self.scan_info_path),
@@ -1714,6 +1753,21 @@ class FrameAveragedTCMAnalysis():
         self.bounds = fitter_cls.bounds if self.bounds is None else self.bounds
 
     def calculate_fit_properties(self, pretty_params: bool = False):
+        r"""Calculate and format fit properties for output.
+
+        Extracts fitted parameters, standard errors, and bounds, then formats them
+        into the analysis_props dictionary.
+
+        Args:
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names.
+                Defaults to False.
+
+        Side Effects:
+            Updates the analysis_props dictionary with formatted fit results.
+
+        See Also:
+            * :meth:`update_props_with_formatted_fit_values`
+        """
         self.update_props_with_formatted_fit_values(fit_values=self.fit_results[0],
                                                     fit_covars=self.fit_results[1],
                                                     param_bounds=self.bounds,
@@ -1726,6 +1780,22 @@ class FrameAveragedTCMAnalysis():
                                                param_bounds: np.ndarray,
                                                fit_props_dict: dict,
                                                pretty_params: bool = False) -> None:
+        r"""Update properties dictionary with formatted fit results.
+
+        Computes standard errors from covariances, formats parameter names (optionally with LaTeX),
+        and updates the fit properties dictionary.
+
+        Args:
+            fit_values (np.ndarray): Array of fitted parameter values.
+            fit_covars (np.ndarray): Covariance matrix from the fit.
+            param_bounds (np.ndarray): Parameter bounds array.
+            fit_props_dict (dict): Dictionary to update with formatted results.
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names.
+                Defaults to False.
+
+        Side Effects:
+            Updates the FitProperties section of fit_props_dict with FitValues, FitStdErr, and Bounds.
+        """
         try:
             fit_stderr = np.sqrt(np.diagonal(fit_covars))
         except ValueError:
@@ -1744,6 +1814,17 @@ class FrameAveragedTCMAnalysis():
                                                                  pretty_params=pretty_params)
 
     def _generate_formatted_bounds(self, param_bounds: np.ndarray, pretty_params: bool = False) -> dict:
+        r"""Format parameter bounds into a dictionary structure.
+
+        Args:
+            param_bounds (np.ndarray): Parameter bounds array with shape (num_params, 3).
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names.
+                Defaults to False.
+
+        Returns:
+            dict: Formatted bounds dictionary with structure:
+                {param_name: {'initial': val, 'lo': lo_bound, 'hi': hi_bound}}
+        """
         param_names = self._model_config.pretty_param_names if pretty_params else self._model_config.param_names
         formatted_bounds = {param: {'initial': val[0], 'lo': val[1], 'hi': val[2]} for param, val in
                             zip(param_names, param_bounds)}
