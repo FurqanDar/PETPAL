@@ -1273,6 +1273,30 @@ class FrameAveragedTACFitter():
                  fit_weights: None | np.ndarray | str = None,
                  tac_resample_num: int = 8192,
                  **leastsq_kwargs):
+        r"""
+        Initialize FrameAveragedTACFitter with TACs, scan timing, and fitting parameters.
+
+        Args:
+            input_tac (TimeActivityCurve): Input function (plasma) TAC.
+            roi_tac (TimeActivityCurve): Region of interest (tissue) TAC to fit.
+            scan_info (ScanTimingInfo): Scan timing information including frame starts and durations.
+            tcm_model_func (Callable, optional): The frame-averaged TCM function to use for fitting.
+                Defaults to :func:`model_serial_2tcm_frame_avgd<~.pet_tcms.model_serial_2tcm_frame_avgd>`.
+            fit_bounds (np.ndarray or None, optional): Parameter bounds with shape (num_params, 3).
+                If None, default bounds are used. Defaults to None.
+            fit_weights (np.ndarray, str, or None, optional): Weights for fitting. Can be:
+                None: No weighting (uniform weights);
+                'roi' or 'roi-tac' or 'tac-err' or 'stderr': Use ROI TAC uncertainties;
+                np.ndarray: Custom weight array Defaults to None.
+            tac_resample_num (int, optional): Number of points for high-resolution resampling.
+                Defaults to 8192.
+            **leastsq_kwargs: Additional keyword arguments passed to :meth:`lmfit.Minimizer.leastsq`.
+
+        Raises:
+            AssertionError: If input_tac or roi_tac are not :class:`~.TimeActivityCurve` objects, or if
+                scan_info is not a :class:`~.ScanTimingInfo` object.
+            ValueError: If tcm_model_func is not in the supported models list.
+        """
         self._validate_inputs(input_tac=input_tac, roi_tac=roi_tac,
                               scan_info=scan_info, tcm_model_func=tcm_model_func, )
 
@@ -1321,6 +1345,19 @@ class FrameAveragedTACFitter():
                          roi_tac: TimeActivityCurve,
                          scan_info: ScanTimingInfo,
                          tcm_model_func: Callable):
+        r"""
+        Validate input parameters for the fitter.
+
+        Args:
+            input_tac (TimeActivityCurve): Input function TAC to validate.
+            roi_tac (TimeActivityCurve): ROI TAC to validate.
+            scan_info (ScanTimingInfo): Scan timing information to validate.
+            tcm_model_func (Callable): TCM function to validate.
+
+        Raises:
+            AssertionError: If TACs are not :class:`~.TimeActivityCurve` objects or scan_info is not :class:`~.ScanTimingInfo`.
+            ValueError: If tcm_model_func is not supported.
+        """
         assert isinstance(input_tac, TimeActivityCurve), "Input TAC must be a TimeActivityCurve object."
         assert isinstance(roi_tac, TimeActivityCurve), "ROI TAC must be a TimeActivityCurve object."
         assert isinstance(scan_info, ScanTimingInfo), "Scan timing information must be a ScanTimingInfo object."
@@ -1332,6 +1369,22 @@ class FrameAveragedTACFitter():
                     )
 
     def _setup_bounds(self, fit_bounds: np.ndarray | None) -> np.ndarray:
+        r"""
+        Set up parameter bounds for curve fitting.
+
+        If bounds are provided, validates their shape. Otherwise, uses default bounds from the model configuration.
+
+        Args:
+            fit_bounds (np.ndarray or None): User-provided bounds with shape (num_params, 3) where each row
+                contains [initial_guess, lower_bound, upper_bound]. If None, default bounds are used.
+
+        Returns:
+            np.ndarray: Parameter bounds array with shape (num_params, 3).
+
+        Raises:
+            ValueError: If fit_bounds has incorrect shape for the model.
+
+        """
         expected_shape = (self.model_config.num_params, 3)
 
         if fit_bounds is not None:
@@ -1346,6 +1399,18 @@ class FrameAveragedTACFitter():
         return self.model_config.default_bounds.copy()
 
     def gen_fit_params(self):
+        r"""
+        Generate lmfit Parameters object from bounds.
+
+        Creates an :class:`lmfit.Parameters` object with parameter names, initial values,
+        and bounds configured from the model configuration and bounds arrays.
+
+        Returns:
+            lmfit.Parameters: Configured parameters object for fitting.
+
+        See Also:
+            * :func:`lmfit.create_params`
+        """
         params_dict = {name: {'vary': True, 'value': guess, "min": min, "max": max} for
                        name, guess, min, max in
                        zip(self.model_config.param_names,
@@ -1355,6 +1420,20 @@ class FrameAveragedTACFitter():
         return lmfit.create_params(**params_dict)
 
     def _setup_weights(self, fit_weights: np.ndarray | str | None) -> np.ndarray | None:
+        r"""
+        Set up weights for weighted least squares fitting.
+
+        Args:
+            fit_weights (np.ndarray, str, or None): Specification for weights. Can be: None: No weighting;
+                'roi', 'roi-tac', 'tac-err', 'stderr': Use ROI TAC uncertainties;
+                 np.ndarray: Custom weight array
+
+        Returns:
+            np.ndarray or None: Weight array for fitting, or None for uniform weighting.
+
+        Side Effects:
+            Issues a warning if a string weight specification is not recognized.
+        """
         if fit_weights is None:
             return None
         elif isinstance(fit_weights, str):
@@ -1374,6 +1453,25 @@ class FrameAveragedTACFitter():
             return cleaned_weights
 
     def run_fit(self) -> None:
+        r"""
+        Run the optimization/fitting process on the frame-averaged data.
+
+        Performs the least-squares fitting using :mod:`lmfit`, extracts the fitted parameters
+        and covariance matrix, calculates residuals, and generates the fitted TAC.
+
+        Returns:
+            None
+
+        Side Effects:
+            - result_obj (lmfit.minimizer.MinimizerResult): Stores the complete lmfit result object.
+            - fit_results (tuple[np.ndarray, np.ndarray]): Stores fitted parameters and covariance matrix.
+            - fit_residuals (np.ndarray): Stores the residuals from the fit.
+            - fit_sum_of_square_residuals (float): Stores the sum of squared residuals.
+            - fit_tac (TimeActivityCurve): Stores the model-predicted TAC using fitted parameters.
+
+        See Also:
+            * :meth:`lmfit.Minimizer.leastsq`
+        """
         self._fit_obj.leastsq(**self.leastsq_kwargs)
         self.result_obj = self._fit_obj.result
 
@@ -1387,6 +1485,14 @@ class FrameAveragedTACFitter():
         self.fit_tac = TimeActivityCurve(self.roi_tac.times_in_mins, _fit_tac_activity)
 
     def __call__(self):
+        r"""
+        Execute the fit by calling the instance.
+
+        Convenience method that runs :meth:`run_fit`.
+
+        Side Effects:
+            Runs the fitting process and populates result attributes.
+        """
         self.run_fit()
 
 
