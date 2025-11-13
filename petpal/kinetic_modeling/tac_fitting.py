@@ -1885,6 +1885,22 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
                  parameter_bounds: None | np.ndarray = None,
                  weights: float | None | np.ndarray = None,
                  resample_num: int = 4096):
+        r"""
+        Initialize a FrameAveragedMultiTACTCMAnalysis instance.
+
+        Args:
+            input_tac_path (str): Path to the input/plasma TAC file.
+            roi_tacs_dir (str): Directory containing multiple ROI TAC files.
+            scan_info_path (str): Path to scan timing information. Typically a JSON file with metadata from a
+                NIfTI file. Can also be the path to a NIfTI file if the metadata have the same name as the NIfTI file, but
+                the extension is json.
+            output_directory (str): Directory for saving analysis results.
+            output_filename_prefix (str): Prefix for output filenames. Typically something like 'sub-XXXX_ses-XX'.
+            compartment_model (str): Name of the compartment model.
+            parameter_bounds (np.ndarray or None, optional): Parameter bounds. Defaults to None.
+            weights (float, np.ndarray, or None, optional): Weights for fitting. Defaults to None.
+            resample_num (int, optional): Number of resampling points. Defaults to 4096.
+        """
         MultiTACAnalysisMixin.__init__(self,
                                        input_tac_path=input_tac_path,
                                        tacs_dir=roi_tacs_dir, )
@@ -1900,9 +1916,20 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
                                           resample_num=resample_num)
         self.fit_results = []
         self.fit_tacs: list[TimeActivityCurve] = []
-        self.update_analysis_props()
 
     def init_analysis_props(self) -> list[dict]:
+        r"""
+        Initialize analysis properties for each tissue TAC.
+
+        Creates a list of analysis property dictionaries, one for each TAC file found in the
+        ROI TACs directory. Updates each dictionary with the appropriate file paths.
+
+        Returns:
+            list[dict]: A list of analysis property dictionaries for each TAC.
+
+        Side Effects:
+            Updates FilePathTTAC and FilePathImageOrMetadata for each properties dictionary.
+        """
         num_of_tacs = self.num_of_tacs
         analysis_props = [FrameAveragedTCMAnalysis.init_analysis_props(self) for a_tac in range(num_of_tacs)]
         for tac_id, a_prop_dict in enumerate(analysis_props):
@@ -1910,11 +1937,21 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
             a_prop_dict['FilePathImageOrMetadata'] = self.scan_info_path
         return analysis_props
 
-    def update_analysis_props(self):
-        for tac_id, a_prop_dict in enumerate(self.analysis_props):
-            a_prop_dict['FilePathImageOrMetadata'] = self.scan_info_path
-
     def calculate_fit(self):
+        r"""
+        Calculate the fit for each TAC in the directory.
+
+        Loads the input TAC and scan timing once, then iterates through all ROI TAC files,
+        fitting each one and storing results.
+
+        Side Effects:
+            - Populates fit_results list with fit results for each TAC.
+            - Populates fit_tacs list with fitted TAC curves.
+            - Sets bounds if they were None initially.
+
+        See Also:
+            * :class:`~.FrameAveragedTACFitter`
+        """
         p_tac = TimeActivityCurve.from_tsv(self.input_tac_path)
         scan_info = ScanTimingInfo.from_nifti(self.scan_info_path)
         fitter_cls = None
@@ -1934,6 +1971,19 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
             self.bounds = fitter_cls.bounds
 
     def calculate_fit_properties(self, pretty_params: bool = False):
+        r"""
+        Calculate and format fit properties for all TACs.
+
+        Iterates through fit results and updates each ROI's analysis properties dictionary
+        with formatted fit values, standard errors, and bounds.
+
+        Args:
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names.
+                Defaults to False.
+
+        Side Effects:
+            Updates each dictionary in analysis_props with formatted fit results.
+        """
         for fit_results, fit_props in zip(self.fit_results, self.analysis_props):
             self.update_props_with_formatted_fit_values(fit_values=fit_results[0],
                                                         fit_covars=fit_results[1],
@@ -1943,11 +1993,36 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
 
 
     def save_analysis(self):
+        r"""
+        Save all analysis results to files.
+
+        Saves three types of outputs:
+            1. Individual JSON files for each ROI's fit properties
+            2. A consolidated TSV table with all TACs and fits
+            3. A consolidated TSV table with all fit parameters
+
+        Side Effects:
+            Writes multiple files to the output directory.
+
+        See Also:
+            * :meth:`_save_fit_props`
+            * :meth:`_save_multitacs_table`
+            * :meth:`_save_multifitprops_table`
+        """
         self._save_fit_props()
         self._save_multitacs_table()
         self._save_multifitprops_table()
 
     def _save_fit_props(self):
+        r"""
+        Save individual JSON fit properties files for each ROI.
+
+        Creates a separate JSON file for each ROI containing its fit properties,
+        with filenames including the ROI segment label.
+
+        Side Effects:
+            Writes multiple JSON files to the output directory, one per ROI.
+        """
         for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
             filename = [self.output_filename_prefix,
                         f'desc-{self.short_tcm_name}',
@@ -1959,6 +2034,18 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
                 json.dump(obj=fit_props, fp=f, indent=4)
 
     def _save_multitacs_table(self):
+        r"""
+        Save a consolidated table of all TACs, fits, and residuals.
+
+        Creates a tab-separated values (TSV) file containing time points and, for each ROI:
+        measured activity, uncertainty, fitted activity, and residuals.
+
+        Side Effects:
+            Writes a TSV file named with pattern: {prefix}_desc-{model}_multitacs.tsv
+
+        See Also:
+            * :class:`TimeActivityCurve`
+        """
         tacs_header: list[str] | str = ['Time(mins)']
         tacs_table: list[np.ndarray] | np.ndarray = [self.fit_tacs[0].times_in_mins]
         for seg_id, seg_name in enumerate(self.inferred_seg_labels):
@@ -1985,6 +2072,20 @@ class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysi
                    fmt='%.8e', header=tacs_header, comments='')
 
     def _save_multifitprops_table(self):
+        r"""
+        Save a consolidated table of all fit parameters.
+
+        Creates a tab-separated values (TSV) file containing fitted parameter values and
+        standard errors for all ROIs in a long-format table.
+
+        The output table has columns: seg-name, param, value, stderr
+
+        Side Effects:
+            Writes a TSV file named with pattern: {prefix}_desc-{model}_multifitprops.tsv
+
+        See Also:
+            * :mod:`pandas`
+        """
         _segs = []
         _params = []
         _vals = []
