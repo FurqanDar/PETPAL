@@ -1497,6 +1497,60 @@ class FrameAveragedTACFitter():
 
 
 class FrameAveragedTCMAnalysis():
+    r"""
+    A class for complete TCM analysis using files on frame-averaged TAC data.
+
+    This class provides a high-level interface for performing tissue compartment model fitting
+    on frame-averaged PET data. It handles file I/O, fitting, and result export including
+    JSON parameter files. It wraps :class:`FrameAveragedTACFitter` with additional functionality
+    for loading data from files and saving results.
+
+    Attributes:
+        input_tac_path (str): Absolute path to input TAC file.
+        roi_tac_path (str): Absolute path to ROI TAC file.
+        scan_info_path (str): Absolute path to scan timing information. Typically a JSON file with metadata from a
+            NIfTI file. Can also be the path to a NIfTI file if the metadata have the same name as the NIfTI file, but
+            the extension is json.
+        output_directory (str): Absolute path to output directory for results.
+        output_filename_prefix (str): Prefix for output filenames.
+        compartment_model (str): Normalized name of the compartment model.
+        short_tcm_name (str): Shortened model name without hyphens.
+        _tcm_func (Callable): The TCM function corresponding to the compartment model.
+        _model_config (FrameAvgdTcmModelConfig): Configuration for the TCM model.
+        bounds (np.ndarray or None): Parameter bounds for fitting.
+        weights (float, np.ndarray, or None): Weights for fitting.
+        resample_num (int): Number of points for TAC resampling.
+        fitter_class (type): The fitter class to use (FrameAveragedTACFitter).
+        analysis_props (dict): Dictionary containing analysis properties and results.
+        fit_results (tuple or None): Fitted parameters and covariance matrix.
+        _has_analysis_been_run (bool): Flag indicating if analysis has been executed.
+
+    Example:
+        .. code-block:: python
+
+            import petpal.kinetic_modeling.tac_fitting as pet_fit
+
+            analysis = pet_fit.FrameAveragedTCMAnalysis(
+                input_tac_path='./input.tsv',
+                roi_tac_path='./roi.tsv',
+                scan_info_path='./pet_image.nii.gz', # Assumes that ./pet_image.json is the metadata file
+                output_directory='./results',
+                output_filename_prefix='subject01',
+                compartment_model='serial-2tcm'
+            )
+
+            # Run and save
+            analysis()
+
+            # Or step by step
+            analysis.run_analysis()
+            analysis.save_analysis()
+
+    See Also:
+        * :class:`FrameAveragedTACFitter`
+        * :class:`FrameAveragedMultiTACTCMAnalysis` for multiple ROIs
+        * :class:`TCMAnalysis` for non-frame-averaged analysis
+    """
     def __init__(self,
                  input_tac_path: str,
                  roi_tac_path: str,
@@ -1507,6 +1561,23 @@ class FrameAveragedTCMAnalysis():
                  parameter_bounds: None | np.ndarray = None,
                  weights: float | None | np.ndarray = None,
                  resample_num: int = 8192):
+        r"""
+        Initialize a FrameAveragedTCMAnalysis instance.
+
+        Args:
+            input_tac_path (str): Path to the input/plasma TAC file.
+            roi_tac_path (str): Path to the ROI/tissue TAC file.
+            scan_info_path (str): Path to scan timing information file. Typically a JSON file with metadata from a
+                NIfTI file. Can also be the path to a NIfTI file if the metadata have the same name as the NIfTI file, but
+                the extension is json.
+            output_directory (str): Directory for saving analysis results.
+            output_filename_prefix (str): Prefix for output filenames.
+            compartment_model (str): Name of the compartment model (e.g., '1tcm', 'serial-2tcm').
+            parameter_bounds (np.ndarray or None, optional): Parameter bounds with shape (num_params, 3).
+                Defaults to None.
+            weights (float, np.ndarray, or None, optional): Weights for fitting. Defaults to None.
+            resample_num (int, optional): Number of points for TAC resampling. Defaults to 8192.
+        """
         self.input_tac_path = os.path.abspath(input_tac_path)
         self.roi_tac_path = os.path.abspath(roi_tac_path)
         self.scan_info_path = os.path.abspath(scan_info_path)
@@ -1525,6 +1596,22 @@ class FrameAveragedTCMAnalysis():
         self._has_analysis_been_run: bool = False
 
     def init_analysis_props(self) -> dict:
+        r"""
+        Initialize the analysis properties dictionary structure.
+
+        Creates a dictionary to store metadata, file paths, model information, and fit results.
+        This dictionary can be saved as a JSON file for parsing results.
+
+        Returns:
+            dict: Initialized dictionary with analysis properties structure including:
+                - FilePathPTAC: Path to input TAC
+                - FilePathTTAC: Path to ROI TAC
+                - TissueCompartmentModel: Model name
+                - FitProperties: Nested dict with FitValues, FitStdErr, Bounds, and ResampleNum
+
+        See Also:
+            * :meth:`calculate_fit_properties`
+        """
         props = {
             'FilePathPTAC'            : self.input_tac_path,
             'FilePathTTAC'            : self.roi_tac_path,
@@ -1541,14 +1628,60 @@ class FrameAveragedTCMAnalysis():
 
     @staticmethod
     def validated_tcm_name(compartment_model: str) -> str:
+        r"""
+        Validate and normalize a tissue compartment model name.
+
+        Args:
+            compartment_model (str): The compartment model name to validate.
+
+        Returns:
+            str: The normalized model name.
+
+        Raises:
+            ValueError: If the model name is not valid for frame-averaged models.
+
+        See Also:
+            * :meth:`~.FrameAvgdTcmModelConfig.normalize_name`
+        """
         FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
         return FrameAvgdTcmModelConfig.normalize_name(compartment_model)
 
     @staticmethod
     def validated_tcm_function(compartment_model: str) -> Callable:
+        r"""
+        Get the TCM function corresponding to a model name.
+
+        Args:
+            compartment_model (str): The compartment model name.
+
+        Returns:
+            Callable: The frame-averaged TCM function.
+
+        Raises:
+            ValueError: If the model name does not correspond to a known frame-averaged model.
+
+        See Also:
+            * :meth:`FrameAvgdTcmModelConfig.resolve_model_name`
+        """
         return FrameAvgdTcmModelConfig.resolve_model_name(compartment_model)
 
     def __call__(self, pretty_params: bool = False):
+        r"""
+        Execute the complete analysis workflow.
+
+        Convenience method that runs the analysis and saves results.
+
+        Args:
+            pretty_params (bool, optional): If True, use LaTeX-formatted parameter names in output.
+                Defaults to False.
+
+        Side Effects:
+            Runs the fit analysis and saves results to the output directory.
+
+        See Also:
+            * :meth:`run_analysis`
+            * :meth:`save_analysis`
+        """
         self.run_analysis(pretty_params=pretty_params)
         self.save_analysis()
 
