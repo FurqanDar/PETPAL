@@ -1199,7 +1199,7 @@ class FrameAveragedTACFitter():
 
     This fitter is designed specifically for PET data where TAC values represent frame-averaged
     measurements rather than instantaneous samples. It uses the :mod:`lmfit` package for robust
-    parameter estimation and handles frame timing information explicitly through :class:`ScanTimingInfo`.
+    parameter estimation and handles frame timing information explicitly through :class:`~.ScanTimingInfo`.
 
     The class performs high-resolution resampling of input TACs internally, then averages the model
     predictions over each frame's duration to match the frame-averaged measurements.
