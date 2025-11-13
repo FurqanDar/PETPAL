@@ -177,7 +177,22 @@ class TcmModelConfig:
 
 
 class ConvTcmModelConfig(TcmModelConfig):
-    """Configuration for convolution-based TCM models."""
+    r"""
+    Configuration for convolution-based TCM models.
+
+    This subclass of :class:`~.TcmModelConfig` provides configurations specific to TCM models
+    that use convolution-based implementations. Supported models include 1TCM, 2TCM with
+    k4=0, and serial 2TCM.
+
+    Attributes:
+        _NAME_TO_FUNC (dict[str, Callable]): Mapping of normalized model names to their
+            corresponding convolution-based TCM functions.
+
+    See Also:
+        * :class:`~.TcmModelConfig`
+        * :class:`~.FrameAvgdTcmModelConfig`
+        * :mod:`petpal.kinetic_modeling.tcms_as_convolutions`
+    """
     _NAME_TO_FUNC: dict[str, Callable] = {
         '1tcm'       : pet_tcms.gen_tac_1tcm_cpet_from_tac,
         '2tcm-k4zero': pet_tcms.gen_tac_2tcm_with_k4zero_cpet_from_tac,
@@ -580,6 +595,12 @@ class TACFitter(object):
 
 class TACFitterWithoutBloodVolume(TACFitter):
     r"""
+
+    .. warning::
+        This class is now deprecated and will be removed in a future version. Currently just acts like
+        :class:`~.TACFitter`, and will attempt to fit for blood volume.
+
+
     A sub-class of TACFitter used specifically for fitting Tissue Compartment Models(TCM) to Time Activity Curves (TAC),
     when there is no signal contribution from blood volume in the TAC.
 
@@ -610,7 +631,7 @@ class TACFitterWithoutBloodVolume(TACFitter):
         delta_t (float): Delta between the newly created time steps in resampled times.
         
     See Also:
-        * :class:`TACFitter`
+        * :class:`~.TACFitter`
 
     """
     def __init__(self,
@@ -793,9 +814,8 @@ class TCMAnalysis(object):
         r"""
         Validates the type of tissue compartment model.
 
-        This method checks that the provided compartment model is one of the pre-defined options '1tcm', '2tcm-k4zero'
-        or 'serial-2tcm'. The input is transformed to lowercase and spaces are replaced with hyphens before checking
-        validity.
+        Runs :meth:`~.ConvTcmModel.resolve_model_name` for validation, and returns
+        the normalized string by running :meth:`~.ConvTcmModel.normalize_name`.
 
         Args:
             compartment_model (str): The name of the compartment model.
@@ -804,7 +824,7 @@ class TCMAnalysis(object):
             str: The transformed name of the validated compartment model if it was valid.
 
         Raises:
-            ValueError: If the provided compartment model is not one of '1tcm', '2tcm-k4zero' or 'serial-2tcm'
+            KeyError: If the provided compartment model is not one of '1tcm', '2tcm-k4zero', 'serial-2tcm' or '2tcm'.
             
         """
         ConvTcmModelConfig.resolve_model_name(compartment_model)
@@ -813,7 +833,8 @@ class TCMAnalysis(object):
     @staticmethod
     def _get_tcm_function(compartment_model: str) -> Callable:
         """
-        Returns the corresponding function for the provided tissue compartment model used for the fitting class
+        Returns the corresponding function for the provided tissue compartment model used for the fitting class.
+        Runs :meth:`~.ConvTcmModel.resolve_model_name` for validation, and returns the appropriate function.
 
         Args:
             compartment_model: The name of the tissue compartment model.
@@ -828,9 +849,8 @@ class TCMAnalysis(object):
             * :func:`gen_tac_1tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_1tcm_cpet_from_tac>`
             * :func:`gen_tac_2tcm_with_k4zero_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_with_k4zero_cpet_from_tac>`
             * :func:`gen_tac_2tcm_cpet_from_tac<petpal.tcms_as_convolutions.gen_tac_2tcm_cpet_from_tac>`
-            * :class:`TACFitter`
-            * :class:`TACFitterWithoutBloodVolume`
-        
+            * :class:`~.TACFitter`
+
         """
         return ConvTcmModelConfig.resolve_model_name(compartment_model)
 
@@ -872,6 +892,19 @@ class TCMAnalysis(object):
             json.dump(obj=self.analysis_props, fp=f, indent=4)
 
     def update_props_with_formatted_fit_values(self, fit_results, fit_props_dict: dict):
+        r"""
+        Update the analysis properties dictionary with formatted fit results.
+
+        Extracts fit parameters and standard errors from fit results, formats them using
+        pretty parameter names, and updates the provided properties dictionary.
+
+        Args:
+            fit_results (tuple): Tuple containing (fit_params, fit_covariances) from the fitting process.
+            fit_props_dict (dict): Dictionary to update with formatted fit values and errors.
+
+        Side Effects:
+            Updates the FitProperties section of fit_props_dict with formatted FitValues, FitStdErr, and Bounds.
+        """
         fit_params, fit_covariances = fit_results
         try:
             fit_stderr = np.sqrt(np.diagonal(fit_covariances))
@@ -945,13 +978,9 @@ class TCMAnalysis(object):
                   TACFitterWithBloodVolume, the last parameter will be named 'vb', others 'k_i'.
                   In the case of TACFitterWithoutBloodVolume, parameters will be named 'k_i'.
         """
-        if self.ignore_blood_volume:
-            k_vals = {f'k_{n + 1}': val for n, val in enumerate(results)}
-            return k_vals
-        else:
-            k_vals = {f'k_{n + 1}': val for n, val in enumerate(results[:-1])}
-            vb = {'vb': results[-1]}
-            return {**k_vals, **vb}
+        k_vals = {f'k_{n + 1}': val for n, val in enumerate(results[:-1])}
+        vb = {'vb': results[-1]}
+        return {**k_vals, **vb}
 
     def _generate_pretty_bounds(self, bounds: Union[np.ndarray, None]) -> dict:
         r"""
