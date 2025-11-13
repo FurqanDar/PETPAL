@@ -18,7 +18,7 @@ calculate and save the images.
 Example:
     .. code-block:: bash
     
-         petpal-parametric-image --input-tac-path /path/to/input.tac --pet4D-img-path /path/to/pet4D.img --threshold-in-mins 30.0 --method-name patlak --output-directory ./images --output-filename-prefix image
+         petpal-parametric-image --input-tac-path /path/to/input.tac --input-image-path /path/to/pet4D.img --threshold-in-mins 30.0 --method-name patlak --output-directory ./images --output-filename-prefix image
 
 See Also:
     :mod:`petpal.parametric_images` - module for initiating and saving the graphical analysis of PET parametric images.
@@ -39,7 +39,7 @@ def main():
                                                  "reference tissue methods on PET data.",
                                      epilog="Example usage: petpal-parametric-image "
                                             "--input-tac-path /path/to/input.tac "
-                                            "--pet4D-img-path /path/to/image4D.pet "
+                                            "--input-image-path /path/to/image4D.pet "
                                             "--output-directory /path/to/output"
                                             " --output-filename-prefix param_image "
                                             "--method-name patlak --threshold-in-mins 30.0")
@@ -51,7 +51,7 @@ def main():
     grp_io = parser_graphical.add_argument_group('I/O Paths')
     grp_io.add_argument("-i", "--input-tac-path", required=True,
                         help="Path to the input Time-Activity Curve (TAC) file.")
-    grp_io.add_argument("-p", "--pet4D-img-path", required=True,
+    grp_io.add_argument("-p", "--input-image-path", required=True,
                         help="Path to the 4D PET image file.")
     grp_io.add_argument("-o", "--output-directory", required=True,
                         help="Directory where the output parametric images will be saved.")
@@ -74,7 +74,7 @@ def main():
     grp_io = parser_reference.add_argument_group('I/O Paths')
     grp_io.add_argument("-i", "--reference-tac-path", required=True,
                         help="Path to the reference region Time-Activity Curve (TAC) file.")
-    grp_io.add_argument("-p", "--pet4D-img-path", required=True,
+    grp_io.add_argument("-p", "--input-image-path", required=True,
                         help="Path to the 4D PET image file.")
     grp_io.add_argument("--mask-img-path", required=True,
                         help="Path to the mask of 4D PET image.")
