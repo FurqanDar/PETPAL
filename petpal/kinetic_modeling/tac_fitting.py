@@ -1831,6 +1831,50 @@ class FrameAveragedTCMAnalysis():
         return formatted_bounds
 
 class FrameAveragedMultiTACTCMAnalysis(FrameAveragedTCMAnalysis, MultiTACAnalysisMixin):
+    r"""
+    A class for performing frame-averaged TCM analysis on multiple tissue TACs.
+
+    This class extends :class:`~.FrameAveragedTCMAnalysis` to handle multiple ROI TACs simultaneously,
+    fitting each to the same compartment model. It inherits functionality from both
+    :class:`~.FrameAveragedTCMAnalysis` and :class:`~.MultiTACAnalysisMixin`, and produces both individual
+    JSON files for each ROI and consolidated TSV tables summarizing all results.
+
+    Attributes:
+        input_tac_path (str): Path to the input TAC file.
+        roi_tacs_dir (str): Directory containing multiple ROI TAC files.
+        scan_info_path (str): Absolute path to scan timing information. Typically a JSON file with metadata from a
+            NIfTI file. Can also be the path to a NIfTI file if the metadata have the same name as the NIfTI file, but
+            the extension is json.
+        output_directory (str): Directory for saving analysis results.
+        output_filename_prefix (str): Prefix for output filenames.
+        compartment_model (str): Name of the compartment model to use.
+        parameter_bounds (np.ndarray or None): Bounds for the fitting parameters.
+        weights (float, np.ndarray, or None): Weights for fitting.
+        resample_num (int): Number of resampling points.
+        fit_results (list): List of fit results for each TAC.
+        fit_tacs (list[TimeActivityCurve]): List of fitted TAC curves for each ROI.
+
+    Example:
+        .. code-block:: python
+
+            import petpal.kinetic_modeling.tac_fitting as pet_fit
+
+            analysis = pet_fit.FrameAveragedMultiTACTCMAnalysis(
+                input_tac_path='./input.tsv',
+                roi_tacs_dir='./roi_tacs/',
+                scan_info_path='./pet_image.nii.gz', # Assuming that './pet_image.json/' exists.
+                output_directory='./results',
+                output_filename_prefix='sub-0001_ses-01',
+                compartment_model='serial-2tcm'
+            )
+
+            analysis()  # Run and save all results
+
+    See Also:
+        * :class:`~.FrameAveragedTCMAnalysis`
+        * :class:`~.MultiTACAnalysisMixin`
+        * :class:`~.MultiTACTCMAnalysis` for non-frame-averaged multi-TAC analysis
+    """
     def __init__(self,
                  input_tac_path: str,
                  roi_tacs_dir: str,
