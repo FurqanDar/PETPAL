@@ -1084,8 +1084,7 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
         for tac_id, a_prop_dict in enumerate(analysis_props):
             a_prop_dict['FilePathTTAC'] = os.path.abspath(self.tacs_files_list[tac_id])
         return analysis_props
-        
-        
+
     def calculate_fit(self):
         """
         Calculates the fit for each TAC, updating the analysis properties with model fit results.
@@ -1107,8 +1106,7 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
             self.fit_results.append(fit_obj.fit_results)
         if (self.bounds is None) and (fit_obj is not None):
             self.bounds = fit_obj.bounds
-            
-    
+
     def calculate_fit_properties(self):
         """
         Updates analysis properties with formatted fit values for each TAC.
@@ -1118,9 +1116,7 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
                                                     self.analysis_props,
                                                     self.tacs_files_list):
             self.update_props_with_formatted_fit_values(fit_results=fit_results, fit_props_dict=fit_props)
-            
-    
-    
+
     def save_analysis(self):
         """
         Saves the analysis results to a JSON file for each TAC. Overrides :meth:`TCMAnalysis.save_analysis`.
@@ -1145,10 +1141,25 @@ class MultiTACTCMAnalysis(TCMAnalysis, MultiTACAnalysisMixin):
 
 
 class FrameAvgdTcmModelConfig(TcmModelConfig):
-    """Configuration for frame-averaged TCM models.
+    r"""
+    Configuration for frame-averaged TCM models.
 
-    Note: These models internally use convolution-based models as in :class:`ConvTcmModelConfig`,
-    but expose a different API for frame-averaged fitting.
+    This subclass of :class:`~.TcmModelConfig` provides configurations specific to TCM models
+    that operate on frame-averaged data. These models internally use convolution-based models
+    as in :class:`~.ConvTcmModelConfig`, but expose a different API optimized for frame-averaged fitting.
+
+    Attributes:
+        _NAME_TO_FUNC (dict[str, Callable]): Mapping of normalized model names to their
+            corresponding frame-averaged TCM functions.
+
+    Note:
+        These models internally use convolution-based models as in :class:`~.ConvTcmModelConfig`,
+        but expose a different API for frame-averaged fitting.
+
+    See Also:
+        * :class:`~.TcmModelConfig`
+        * :class:`~.ConvTcmModelConfig`
+        * :mod:`petpal.kinetic_modeling.tcms_as_convolutions`
     """
     _NAME_TO_FUNC: dict[str, Callable] = {
         '1tcm'       : pet_tcms.model_serial_1tcm_frame_avgd,
@@ -1183,6 +1194,73 @@ _FRAME_AVGD_TCM_CONFIGS = {
 
 
 class FrameAveragedTACFitter():
+    r"""
+    A class for fitting Tissue Compartment Models (TCM) to frame-averaged Time Activity Curves (TAC).
+
+    This fitter is designed specifically for PET data where TAC values represent frame-averaged
+    measurements rather than instantaneous samples. It uses the :mod:`lmfit` package for robust
+    parameter estimation and handles frame timing information explicitly through :class:`ScanTimingInfo`.
+
+    The class performs high-resolution resampling of input TACs internally, then averages the model
+    predictions over each frame's duration to match the frame-averaged measurements.
+
+    Attributes:
+        input_tac (TimeActivityCurve): Input function (plasma) TAC.
+        roi_tac (TimeActivityCurve): Region of interest (tissue) TAC to fit.
+        roi_has_err (bool): Whether the ROI TAC has uncertainty estimates.
+        frame_durations (np.ndarray): Duration of each frame in minutes.
+        frame_starts (np.ndarray): Start time of each frame in minutes.
+        frame_ends (np.ndarray): End time of each frame in minutes.
+        model_config (FrameAvgdTcmModelConfig): Configuration for the TCM model being fitted.
+        tcm_func (Callable): The tissue compartment model function.
+        bounds (np.ndarray): Parameter bounds with shape (num_params, 3).
+        initial_guesses (np.ndarray): Initial parameter guesses.
+        bounds_lo (np.ndarray): Lower parameter bounds.
+        bounds_hi (np.ndarray): Upper parameter bounds.
+        tcm_fit_params (lmfit.Parameters): lmfit Parameters object for fitting.
+        tac_resample_num (int): Number of points for high-resolution TAC resampling.
+        fine_roi_tac (TimeActivityCurve): High-resolution resampled ROI TAC.
+        fine_input_tac (TimeActivityCurve): High-resolution resampled input TAC.
+        frame_idx_pairs (np.ndarray): Index pairs for frame averaging operations.
+        weights (np.ndarray or None): Weights for weighted least squares fitting.
+        result_obj (lmfit.minimizer.MinimizerResult or None): Results from lmfit optimization.
+        fit_results (tuple[np.ndarray, np.ndarray] or None): Fitted parameters and covariance matrix.
+        fit_residuals (np.ndarray or None): Residuals from the fit.
+        fit_sum_of_square_residuals (float or None): Sum of squared residuals.
+        fit_tac (TimeActivityCurve or None): Model-predicted TAC using fitted parameters.
+
+    Example:
+        .. code-block:: python
+
+            from petpal.utils.time_activity_curve import TimeActivityCurve
+            from petpal.utils.scan_timing import ScanTimingInfo
+            import petpal.kinetic_modeling.tcms_as_convolutions as pet_tcm
+            import petpal.kinetic_modeling.tac_fitting as pet_fit
+
+            # Load TACs and scan timing
+            input_tac = TimeActivityCurve.from_tsv('input.tsv')
+            roi_tac = TimeActivityCurve.from_tsv('roi.tsv')
+            scan_info = ScanTimingInfo.from_nifti('pet_image.nii')
+
+            # Initialize and run fitter
+            fitter = pet_fit.FrameAveragedTACFitter(
+                input_tac=input_tac,
+                roi_tac=roi_tac,
+                scan_info=scan_info,
+                tcm_model_func=pet_tcm.model_serial_2tcm_frame_avgd
+            )
+            fitter.run_fit()
+
+            # Access results
+            fit_params = fitter.fit_results[0]
+            fit_tac = fitter.fit_tac
+
+    See Also:
+        * :class:`~.TACFitter` for non-frame-averaged fitting
+        * :class:`~.FrameAveragedTCMAnalysis` for complete analysis workflow
+        * :class:`~.TimeActivityCurve`
+        * :class:`~.ScanTimingInfo`
+    """
 
     SUPPORTED_MODELS = frozenset(_FRAME_AVGD_TCM_CONFIGS.keys())
 
