@@ -126,7 +126,6 @@ def _generate_args() -> argparse.Namespace:
     sub_parser_list = [frame_avgd_parser, interpolated_parser]
 
     for a_parser in sub_parser_list:
-
         match a_parser.prog.split(' ')[-1]:
             case 'interp':
                 grp_io = add_common_io_args(a_parser)
@@ -215,28 +214,21 @@ def main():
                          weights=None,
                          resample_num=args.resample_num, )
 
+    is_single_tac = os.path.isfile(args.roi_tac_path)
+    common_kwargs.pop('roi_tacs_dir') if is_single_tac else common_kwargs.pop('roi_tac_path')
+
 
     if args.strategy == 'frame_avgd':
         strategy_kwargs = common_kwargs | dict(scan_info_path=args.scan_metadata_path)
-        if os.path.isfile(args.roi_tac_path):
-            os.makedirs(args.output_directory, exist_ok=True)
-            strategy_kwargs.pop('roi_tacs_dir')
-            tac_fitting = pet_fit.FrameAveragedTCMAnalysis(**strategy_kwargs)
-        else:
-            strategy_kwargs.pop('roi_tac_path')
-            tac_fitting = pet_fit.FrameAveragedMultiTACTCMAnalysis(**strategy_kwargs)
+        AnalysisClass = pet_fit.FrameAveragedTCMAnalysis if is_single_tac else pet_fit.FrameAveragedMultiTACTCMAnalysis
     else:
         strategy_kwargs = common_kwargs | dict(aif_fit_thresh_in_mins=args.input_fitting_threshold_in_mins,
                                                max_func_iters=args.max_fit_iterations,
                                                ignore_blood_volume=args.ignore_blood_volume)
-        if os.path.isfile(args.roi_tac_path):
-            strategy_kwargs.pop('roi_tacs_dir')
-            tac_fitting = pet_fit.TCMAnalysis(**strategy_kwargs)
-        else:
-            os.makedirs(args.output_directory, exist_ok=True)
-            strategy_kwargs.pop('roi_tac_path')
-            tac_fitting = pet_fit.MultiTACTCMAnalysis(**strategy_kwargs)
+        AnalysisClass = pet_fit.TCMAnalysis if is_single_tac else pet_fit.MultiTACTCMAnalysis
 
+    os.makedirs(args.output_directory, exist_ok=True)
+    tac_fitting = AnalysisClass(**strategy_kwargs)
     tac_fitting.run_analysis()
     tac_fitting.save_analysis()
     
