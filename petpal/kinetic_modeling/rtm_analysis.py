@@ -2,16 +2,19 @@
 Class for doing RTM analysis
 """
 import os
+import warnings
 from typing import Union
 import json
 import numpy as np
-from petpal.kinetic_modeling.fit_tac_with_rtms import FitTACWithRTMs
-from petpal.kinetic_modeling.graphical_analysis import get_index_from_threshold
-from petpal.kinetic_modeling.reference_tissue_models import (calc_k2prime_from_mrtm_2003_fit,
-                                                             calc_k2prime_from_mrtm_original_fit,
-                                                             calc_bp_from_mrtm2_2003_fit,
-                                                             calc_bp_from_mrtm_original_fit,
-                                                             calc_bp_from_mrtm_2003_fit)
+from .fit_tac_with_rtms import FitTACWithRTMs
+from .graphical_analysis import (get_index_from_threshold,
+                                 km_multifit_analysis_to_jsons,
+                                 km_multifit_analysis_to_tsv)
+from .reference_tissue_models import (calc_k2prime_from_mrtm_2003_fit,
+                                      calc_k2prime_from_mrtm_original_fit,
+                                      calc_bp_from_mrtm2_2003_fit,
+                                      calc_bp_from_mrtm_original_fit,
+                                      calc_bp_from_mrtm_2003_fit)
 from ..utils.time_activity_curve import TimeActivityCurve, safe_load_tac
 from ..utils.time_activity_curve import MultiTACAnalysisMixin
 
@@ -115,7 +118,8 @@ class RTMAnalysis:
         """
         common_props = {'FilePathRTAC': self.ref_tac_path,
                         'FilePathTTAC': self.roi_tac_path,
-                        'MethodName': method.upper()}
+                        'MethodName': method.upper(),
+                        'k2Prime': None}
         if method.startswith("mrtm"):
             props = {
                 'BP': None,
@@ -506,24 +510,48 @@ class MultiTACRTMAnalysis(RTMAnalysis, MultiTACAnalysisMixin):
                                           t_thresh_in_mins=t_thresh_in_mins,
                                           props_dict=props_dict)
 
-    def save_analysis(self):
+    def save_analysis(self, output_as_tsv: bool=True, output_as_json: bool=False):
         """
-        Saves the analysis results to a JSON file for each segment/TAC. Overrides
-        :meth:`RTMAnalysis.save_analysis`.
+        Saves the analysis results to a TSV file as a table with fit parameters for each ROI.
+
+        Args:
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
 
         Raises:
-            RuntimeError: If 'run_analysis' method has not been called before 'save_analysis'.
+            RuntimeError: If 'run_analysis' method has not been called before save_analysis.
         """
         if not self._has_analysis_been_run:
             raise RuntimeError("'run_analysis' method must be called before 'save_analysis'.")
 
-        for seg_name, fit_props in zip(self.inferred_seg_labels, self.analysis_props):
-            filename = [self.output_filename_prefix,
-                        f'desc-{self.method}',
-                        f'seg-{seg_name}',
-                        'fitprops.json']
-            filename = '_'.join(filename)
-            filepath = os.path.join(self.output_directory, filename)
+        if output_as_tsv:
+            km_multifit_analysis_to_jsons(analysis_props=self.analysis_props,
+                                          output_directory=self.output_directory,
+                                          output_filename_prefix=self.output_filename_prefix,
+                                          method=self.method,
+                                          inferred_seg_labels=self.inferred_seg_labels)
+        if output_as_json:
+            km_multifit_analysis_to_tsv(analysis_props=self.analysis_props,
+                                        output_directory=self.output_directory,
+                                        output_filename_prefix=self.output_filename_prefix,
+                                        method=self.method,
+                                        inferred_seg_labels=self.inferred_seg_labels)
+        if not output_as_tsv and not output_as_json:
+            warnings.warn('Both output_as_tsv and output_as_json set False. Results not written to '
+                          'file.')
 
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(obj=fit_props, fp=f, indent=4)
+    def __call__(self, output_as_tsv: bool=True, output_as_json: bool=False, **run_kwargs):
+        """
+        Runs :meth:`run_analysis` and :meth:`save_analysis` to run the analysis and save the
+        analysis properties.
+        
+        Args:
+            output_as_tsv (bool): Set True to write results to TSV table. Default True.
+            output_as_json (bool): Set True to write results to a folder with one JSON file per
+                region. Default False.
+            run_kwargs: Additional keyword arguments used in the analysis. These are passed on to
+                :meth:`run_analysis`.
+        """
+        self.run_analysis(**run_kwargs)
+        self.save_analysis(output_as_tsv=output_as_tsv, output_as_json=output_as_json)
