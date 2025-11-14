@@ -60,6 +60,12 @@ _EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lam
              '-f 1000 -n 512 -b '
              '--print')
 
+def add_common_io_args(parser: argparse.ArgumentParser):
+    grp_io = parser.add_argument_group('IO Paths and Prefixes')
+    grp_io.add_argument("-i", "--input-tac-path", required=True, help="Path to the input TAC file.")
+    grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file.")
+    grp_io.add_argument("-o", "--output-directory", required=True, help="Path to the output directory.")
+    grp_io.add_argument("-p", "--output-filename-prefix", required=True, help="Prefix for the output filenames.")
 
 def _generate_args() -> argparse.Namespace:
     r"""
@@ -77,14 +83,10 @@ def _generate_args() -> argparse.Namespace:
                                      description='Command line interface for fitting Tissue Compartment Models (TCM) '
                                                  'to PET Time Activity Curves (TACs).',
                                      formatter_class=argparse.RawTextHelpFormatter, epilog=_EXAMPLE_)
-    
+
     # IO group
-    grp_io = parser.add_argument_group('IO Paths and Prefixes')
-    grp_io.add_argument("-i", "--input-tac-path", required=True, help="Path to the input TAC file.")
-    grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file.")
-    grp_io.add_argument("-o", "--output-directory", required=True, help="Path to the output directory.")
-    grp_io.add_argument("-p", "--output-filename-prefix", required=True, help="Prefix for the output filenames.")
-    
+    add_common_io_args(parser)
+
     # Analysis group
     grp_analysis = parser.add_argument_group('Analysis Parameters')
     grp_analysis.add_argument("-m", "--model", required=True, choices=['1tcm', '2tcm-k4zero', 'serial-2tcm'],
@@ -111,6 +113,7 @@ def _generate_args() -> argparse.Namespace:
     grp_verbose.add_argument("--print", action="store_true", help="Whether to print the analysis results.")
     
     return parser.parse_args()
+
 
 
 def _generate_bounds(initial: Union[list, None],
