@@ -114,7 +114,7 @@ def _generate_args() -> argparse.Namespace:
                                                  'to PET Time Activity Curves (TACs).',
                                      formatter_class=argparse.RawTextHelpFormatter, epilog=_EXAMPLE_)
 
-    subparsers = parser.add_subparsers(title='strategy', description='Strategy for fitting TACs.',
+    subparsers = parser.add_subparsers(dest='strategy', description='Strategy for fitting TACs.',
                                        help='Strategy for fitting TACs.')
 
     frame_avgd_parser = subparsers.add_parser('frame_avgd', help='Perform analysis on properly frame averaged '
@@ -178,6 +178,24 @@ def _generate_bounds(initial: Union[list, None],
         return None
 
 
+def fit_props_printer(fit_props: dict, segment: str | None = None) -> None:
+    title_str = f"{'Param':<5} {'FitVal':<6}    {'StdErr':<8} ({'%Err':>6})|"
+    title_len = len(title_str)
+    if segment :
+        print(f'{"Segment: " + segment:#^{title_len}}')
+    print("-" * title_len)
+    print(title_str)
+    print("-" * title_len)
+    vals = fit_props["FitProperties"]["FitValues"]
+    errs = fit_props["FitProperties"]["FitStdErr"]
+    for param_name in vals:
+        val = vals[param_name]
+        err = errs[param_name]
+        percent_err = f"{err / val * 100:>5.2f}%" if val > 0 else "NAN"
+        print(f"{param_name:<5} {val:<6.4f} +- {err:<8.4f} ({percent_err:>6})|")
+
+    print("-" * title_len)
+
 def main():
     args = _generate_args()
     
@@ -201,6 +219,7 @@ def main():
     if args.strategy == 'frame_avgd':
         strategy_kwargs = common_kwargs | dict(scan_info_path=args.scan_metadata_path)
         if os.path.isfile(args.roi_tac_path):
+            os.makedirs(args.output_directory, exist_ok=True)
             strategy_kwargs.pop('roi_tacs_dir')
             tac_fitting = pet_fit.FrameAveragedTCMAnalysis(**strategy_kwargs)
         else:
@@ -214,6 +233,7 @@ def main():
             strategy_kwargs.pop('roi_tacs_dir')
             tac_fitting = pet_fit.TCMAnalysis(**strategy_kwargs)
         else:
+            os.makedirs(args.output_directory, exist_ok=True)
             strategy_kwargs.pop('roi_tac_path')
             tac_fitting = pet_fit.MultiTACTCMAnalysis(**strategy_kwargs)
 
@@ -221,17 +241,11 @@ def main():
     tac_fitting.save_analysis()
     
     if args.print:
-        title_str = f"{'Param':<5} {'FitVal':<6}    {'StdErr':<6} ({'%Err':>6})|"
-        print("-" * len(title_str))
-        print(title_str)
-        print("-" * len(title_str))
-        vals = tac_fitting.analysis_props["FitProperties"]["FitValues"]
-        errs = tac_fitting.analysis_props["FitProperties"]["FitStdErr"]
-        for param_name in vals:
-            val = vals[param_name]
-            err = errs[param_name]
-            print(f"{param_name:<5} {val:<6.4f} +- {err:<6.4f} ({err / val * 100:>5.2f}%)|")
-        print("-" * len(title_str))
+        if os.path.isfile(args.roi_tac_path):
+            fit_props_printer(fit_props=tac_fitting.analysis_props)
+        else:
+            for seg_name, seg_props in zip(tac_fitting.inferred_seg_labels, tac_fitting.analysis_props):
+                fit_props_printer(fit_props=seg_props, segment=seg_name)
 
 
 if __name__ == "__main__":
