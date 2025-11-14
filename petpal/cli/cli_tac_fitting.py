@@ -22,9 +22,9 @@ User can optionally provide:
 This script utilizes the :class:`TCMAnalysis<petpal.tac_fitting.TCMAnalysis>` class to perform the TAC fitting and save
  the results accordingly.
 
-Example:
+Examples:
     In the proceeding example, we assume that we have an input TAC named 'input_tac.txt', and an ROI TAC named
-    'roi_tac.txt'. We want to try fitting a serial 2TCM to the ROI tac.
+    'roi_tac.tsv'. We want to try fitting a serial 2TCM to the ROI tac.
     
     .. code-block:: bash
 
@@ -36,7 +36,20 @@ Example:
         -g 0.1 0.1 0.1 0.1 0.1\
         -l 0.0 0.0 0.0 0.0 0.0\
         -u 5.0 5.0 5.0 5.0 5.0\
-        -f 1000 -n 512 -b --print
+        -f 2500 -n 4096 -b --print
+
+    In this next example, we assume that we have an input TAC named 'input_tac.txt', an ROI TACs directory
+     named './roi_tas/' which contains TACs for different ROIs, and a scan/image metadata file called 'scan_info.json'.
+     We want to try fitting serial 2TCM to the ROI tacs, with the default bounds.
+
+    .. code-block:: bash
+
+        petpal-tcm-fit frame_avgd -i "input_tac.tsv"\
+        -r "./roi_tacs/"\
+        -s "scan_info.json"\
+        -m "serial-2tcm"\
+        -o "./" -p "cli_"\
+        -f 2500 -n 4096 -b --print
 
 See Also:
     :mod:`petpal.tac_fitting` - module for fitting TACs with TCMs.
@@ -49,7 +62,7 @@ import numpy as np
 import argparse
 from ..kinetic_modeling import tac_fitting as pet_fit
 
-_EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lambda=ln(2)/t_half_in_mins):\n\t'
+_EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the interpolation strategy:\n\t'
              'petpal-tcm-fit interp -i "input_tac.txt"'
              ' -r "2tcm_tac.txt" '
              '-m "serial-2tcm" '
@@ -57,12 +70,23 @@ _EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lam
              '-g 0.1 0.1 0.1 0.1 0.1 '
              '-l 0.0 0.0 0.0 0.0 0.0 '
              '-u 5.0 5.0 5.0 5.0 5.0 '
-             '-f 1000 -n 512 -b '
-             '--print')
+             '-f 2500 -n 4096 -b '
+             '--print\n\n'
+             'Fitting a TAC to the serial 2TCM using the frame averaged strategy:\n\t'
+             'petpal-tcm-fit frame_avgd -i "input_tac.txt"'
+             ' -r "2tcm_tac.txt" '
+             '-s scan_metadata.json '
+             '-m "serial-2tcm" '
+             '-o "./" -p "cli_" '
+             '-g 0.1 0.1 0.1 0.1 0.1 '
+             '-l 0.0 0.0 0.0 0.0 0.0 '
+             '-u 5.0 5.0 5.0 5.0 5.0 '
+             '-f 2500 -n 4096 -b '
+             '--print'
+             )
 
 def add_common_io_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
-    r"""
-    Adds common input/output arguments to the provided argument parser.
+    r"""Adds common input/output arguments to the provided argument parser.
 
     This helper function configures arguments that are shared between all subcommands
     for specifying input TAC paths, ROI TAC paths, output directory and output filename prefix.
@@ -87,8 +111,7 @@ def add_common_io_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGro
 
 
 def add_common_analysis_args(parser: argparse.ArgumentParser):
-    r"""
-    Adds common analysis-related arguments to the provided argument parser.
+    r"""Adds common analysis-related arguments to the provided argument parser.
 
     This helper function configures arguments controlling model selection, parameter
     initialization, parameter bounds, maximum number of fitting iterations and
@@ -106,8 +129,8 @@ def add_common_analysis_args(parser: argparse.ArgumentParser):
                               help="Initial guesses for each fitting parameter.")
     grp_analysis.add_argument("-l", "--lower-bounds", required=False, nargs='+', type=float,
                               help="Lower bounds for each fitting parameter.")
-    grp_analysis.add_argument("-w", "--weighting-decay-constant", required=False, type=float, default=None,
-                              help="Decay constant for computing per-frame weighting for fits.")
+    # grp_analysis.add_argument("-w", "--weighting-decay-constant", required=False, type=float, default=None,
+    #                           help="Decay constant for computing per-frame weighting for fits.")
     grp_analysis.add_argument("-u", "--upper-bounds", required=False, nargs='+', type=float,
                               help="Upper bounds for each fitting parameter.")
     grp_analysis.add_argument("-f", "--max-fit-iterations", required=False, default=2500, type=int,
@@ -117,8 +140,7 @@ def add_common_analysis_args(parser: argparse.ArgumentParser):
 
 
 def add_common_print_args(parser: argparse.ArgumentParser):
-    r"""
-    Adds common verbosity/printing arguments to the provided argument parser.
+    r"""Adds common verbosity/printing arguments to the provided argument parser.
 
     This helper function configures arguments related to optional printing of analysis
     results to the console.
@@ -132,8 +154,7 @@ def add_common_print_args(parser: argparse.ArgumentParser):
 
 
 def _generate_args() -> argparse.Namespace:
-    r"""
-    Generates and handles the arguments for the command-line interface.
+    r"""Generates and handles the arguments for the command-line interface.
 
     This function sets up the argument parser, adds required and optional arguments, and parses input arguments.
 
@@ -163,7 +184,7 @@ def _generate_args() -> argparse.Namespace:
         match a_parser.prog.split(' ')[-1]:
             case 'interp':
                 grp_io = add_common_io_args(a_parser)
-                grp_io.add_argument("-t", "--input-fitting-threshold-in-mins", required=True, type=float,
+                grp_io.add_argument("-t", "--input-fitting-threshold-in-mins", required=False, type=float, default=30.0,
                                     help="Threshold in minutes for fitting the later half of the input function.")
                 grp_io.add_argument("-b", "--ignore-blood-volume", required=False,
                                     default=False, action='store_true',
@@ -184,8 +205,7 @@ def _generate_args() -> argparse.Namespace:
 def _generate_bounds(initial: Union[list, None],
                      lower: Union[list, None],
                      upper: Union[list, None]) -> Union[np.ndarray, None]:
-    r"""
-    Generates the bounds for the fitting parameters.
+    r"""Generates the bounds for the fitting parameters.
 
     This function takes lists of initial fitting parameters, lower bounds, and upper bounds.
     All lists must have the same length. If no initial parameters are provided, the function returns None.
@@ -212,8 +232,7 @@ def _generate_bounds(initial: Union[list, None],
 
 
 def fit_props_printer(fit_props: dict, segment: str | None = None) -> None:
-    r"""
-    Nicely formats and prints fit parameter estimates and uncertainties.
+    r"""Nicely formats and prints fit parameter estimates and uncertainties.
 
     This function prints a table of fitted parameter values, standard errors and
     percent errors. If a segment label is provided, it is printed as a header
