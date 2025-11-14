@@ -32,7 +32,7 @@ Example:
         -r "roi_tac.tsv"\
         -m "serial-2tcm"\
         -o "./" -p "cli_"\
-        -t 35.0 -w 0.0063
+        -t 35.0\
         -g 0.1 0.1 0.1 0.1 0.1\
         -l 0.0 0.0 0.0 0.0 0.0\
         -u 5.0 5.0 5.0 5.0 5.0\
@@ -44,6 +44,7 @@ See Also:
 """
 
 from typing import Union
+import os
 import numpy as np
 import argparse
 from ..kinetic_modeling import tac_fitting as pet_fit
@@ -53,20 +54,23 @@ _EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lam
              ' -r "2tcm_tac.txt" '
              '-m "serial-2tcm" '
              '-o "./" -p "cli_" -t 35.0 '
-             '-w 0.0063 '
              '-g 0.1 0.1 0.1 0.1 0.1 '
              '-l 0.0 0.0 0.0 0.0 0.0 '
              '-u 5.0 5.0 5.0 5.0 5.0 '
              '-f 1000 -n 512 -b '
              '--print')
 
-def add_common_io_args(parser: argparse.ArgumentParser):
+def add_common_io_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
     grp_io = parser.add_argument_group('IO Paths and Prefixes')
     grp_io.add_argument("-i", "--input-tac-path", required=True, help="Path to the input TAC file.")
-    grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file.")
+    grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file. "
+                                                                    "Can also be the path to a directory where each "
+                                                                    "TAC in the directory corresponds to an ROI to be "
+                                                                    "analyzed.")
     grp_io.add_argument("-o", "--output-directory", required=True, help="Path to the output directory.")
     grp_io.add_argument("-p", "--output-filename-prefix", required=True,
                         help="Prefix for the output filenames. Typically 'sub-xxxx_ses-xx'")
+    return grp_io
 
 
 def add_common_analysis_args(parser: argparse.ArgumentParser):
@@ -114,33 +118,34 @@ def _generate_args() -> argparse.Namespace:
                                        help='Strategy for fitting TACs.')
 
     frame_avgd_parser = subparsers.add_parser('frame_avgd', help='Perform analysis on properly frame averaged '
-                                                                 'TACs using scan information.')
+                                                                 'TACs using scan information. Usually more stable to '
+                                                                 'noise, and the preferred strategy for non-simulated TACs')
     interpolated_parser = subparsers.add_parser('interp', help='Perform analysis on interpolated TACs '
                                                                'without using scan information.')
 
     sub_parser_list = [frame_avgd_parser, interpolated_parser]
 
     for a_parser in sub_parser_list:
-        add_common_io_args(a_parser)
-        add_common_analysis_args(a_parser)
-        add_common_print_args(a_parser)
-        match a_parser.prog:
+
+        match a_parser.prog.split(' ')[-1]:
             case 'interp':
-                a_parser.add_argument("-t", "--input-fitting-threshold-in-mins", required=True, type=float,
-                                      help="Threshold in minutes for fitting the later half of the input function.")
-                a_parser.add_argument("-b", "--ignore-blood-volume", required=False,
-                                      default=False, action='store_true',
-                                      help="Whether to ignore any blood volume contributions while fitting.")
+                grp_io = add_common_io_args(a_parser)
+                grp_io.add_argument("-t", "--input-fitting-threshold-in-mins", required=True, type=float,
+                                    help="Threshold in minutes for fitting the later half of the input function.")
+                grp_io.add_argument("-b", "--ignore-blood-volume", required=False,
+                                    default=False, action='store_true',
+                                    help="Whether to ignore any blood volume contributions while fitting.")
             case 'frame_avgd':
-                a_parser.add_argument('-s', '--scan-metadata-path', required=True, type=str,
-                                      help="Path to the scan metadata file. Can also be the path to the .nii.gz file"
-                                           "if the metadata shares the scan name: `*.nii.gz` -> `*json`.")
+                grp_io = add_common_io_args(a_parser)
+                grp_io.add_argument('-s', '--scan-metadata-path', required=True, type=str,
+                                    help="Path to the scan metadata file. Can also be the path to the .nii.gz file"
+                                         "if the metadata shares the scan name: `*.nii.gz` -> `*json`.")
             case _:
                 pass
+        add_common_analysis_args(a_parser)
+        add_common_print_args(a_parser)
 
     return parser.parse_args()
-
-
 
 
 def _generate_bounds(initial: Union[list, None],
@@ -177,18 +182,41 @@ def main():
     args = _generate_args()
     
     bounds = _generate_bounds(initial=args.initial_guesses, lower=args.lower_bounds, upper=args.upper_bounds)
-    
-    tac_fitting = pet_fit.TCMAnalysis(input_tac_path=args.input_tac_path,
-                                      roi_tac_path=args.roi_tac_path,
-                                      output_directory=args.output_directory,
-                                      output_filename_prefix=args.output_filename_prefix,
-                                      compartment_model=args.model,
-                                      parameter_bounds=bounds,
-                                      weights=None,
-                                      resample_num=args.resample_num,
-                                      aif_fit_thresh_in_mins=args.input_fitting_threshold_in_mins,
-                                      max_func_iters=args.max_fit_iterations,
-                                      ignore_blood_volume=args.ignore_blood_volume)
+
+    if args.strategy is None:
+        args.print_help()
+        raise ValueError("No fitting strategy specified!")
+
+    common_kwargs = dict(input_tac_path=args.input_tac_path,
+                         roi_tac_path=args.roi_tac_path,
+                         roi_tacs_dir=args.roi_tac_path,
+                         output_directory=args.output_directory,
+                         output_filename_prefix=args.output_filename_prefix,
+                         compartment_model=args.model,
+                         parameter_bounds=bounds,
+                         weights=None,
+                         resample_num=args.resample_num, )
+
+
+    if args.strategy == 'frame_avgd':
+        strategy_kwargs = common_kwargs | dict(scan_info_path=args.scan_metadata_path)
+        if os.path.isfile(args.roi_tac_path):
+            strategy_kwargs.pop('roi_tacs_dir')
+            tac_fitting = pet_fit.FrameAveragedTCMAnalysis(**strategy_kwargs)
+        else:
+            strategy_kwargs.pop('roi_tac_path')
+            tac_fitting = pet_fit.FrameAveragedMultiTACTCMAnalysis(**strategy_kwargs)
+    else:
+        strategy_kwargs = common_kwargs | dict(aif_fit_thresh_in_mins=args.input_fitting_threshold_in_mins,
+                                               max_func_iters=args.max_fit_iterations,
+                                               ignore_blood_volume=args.ignore_blood_volume)
+        if os.path.isfile(args.roi_tac_path):
+            strategy_kwargs.pop('roi_tacs_dir')
+            tac_fitting = pet_fit.TCMAnalysis(**strategy_kwargs)
+        else:
+            strategy_kwargs.pop('roi_tac_path')
+            tac_fitting = pet_fit.MultiTACTCMAnalysis(**strategy_kwargs)
+
     tac_fitting.run_analysis()
     tac_fitting.save_analysis()
     
