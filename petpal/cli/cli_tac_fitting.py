@@ -28,8 +28,8 @@ Example:
     
     .. code-block:: bash
 
-        petpal-tcm-fit -i "input_tac.txt"\
-        -r "roi_tac.txt"\
+        petpal-tcm-fit interp -i "input_tac.tsv"\
+        -r "roi_tac.tsv"\
         -m "serial-2tcm"\
         -o "./" -p "cli_"\
         -t 35.0 -w 0.0063
@@ -49,7 +49,7 @@ import argparse
 from ..kinetic_modeling import tac_fitting as pet_fit
 
 _EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lambda=ln(2)/t_half_in_mins):\n\t'
-             'petpal-tcm-fit -i "input_tac.txt"'
+             'petpal-tcm-fit interp -i "input_tac.txt"'
              ' -r "2tcm_tac.txt" '
              '-m "serial-2tcm" '
              '-o "./" -p "cli_" -t 35.0 '
@@ -65,7 +65,33 @@ def add_common_io_args(parser: argparse.ArgumentParser):
     grp_io.add_argument("-i", "--input-tac-path", required=True, help="Path to the input TAC file.")
     grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file.")
     grp_io.add_argument("-o", "--output-directory", required=True, help="Path to the output directory.")
-    grp_io.add_argument("-p", "--output-filename-prefix", required=True, help="Prefix for the output filenames.")
+    grp_io.add_argument("-p", "--output-filename-prefix", required=True,
+                        help="Prefix for the output filenames. Typically 'sub-xxxx_ses-xx'")
+
+
+def add_common_analysis_args(parser: argparse.ArgumentParser):
+    grp_analysis = parser.add_argument_group('Analysis Parameters')
+    grp_analysis.add_argument("-m", "--model", required=True,
+                              choices=['1tcm', '2tcm-k4zero', 'serial-2tcm', '2tcm'],
+                              help="Analysis model to fit.")
+    grp_analysis.add_argument("-g", "--initial-guesses", required=False, nargs='+', type=float,
+                              help="Initial guesses for each fitting parameter.")
+    grp_analysis.add_argument("-l", "--lower-bounds", required=False, nargs='+', type=float,
+                              help="Lower bounds for each fitting parameter.")
+    grp_analysis.add_argument("-w", "--weighting-decay-constant", required=False, type=float, default=None,
+                              help="Decay constant for computing per-frame weighting for fits.")
+    grp_analysis.add_argument("-u", "--upper-bounds", required=False, nargs='+', type=float,
+                              help="Upper bounds for each fitting parameter.")
+    grp_analysis.add_argument("-f", "--max-fit-iterations", required=False, default=2500, type=int,
+                              help="Maximum number of function iterations")
+    grp_analysis.add_argument("-n", "--resample-num", required=False, default=4096, type=int,
+                              help="Number of samples for uniform linear interpolation of provided TACs.")
+
+
+def add_common_print_args(parser: argparse.ArgumentParser):
+    grp_verbose = parser.add_argument_group('Additional Options')
+    grp_verbose.add_argument("--print", action="store_true", help="Whether to print the analysis results.")
+
 
 def _generate_args() -> argparse.Namespace:
     r"""
@@ -84,7 +110,8 @@ def _generate_args() -> argparse.Namespace:
                                                  'to PET Time Activity Curves (TACs).',
                                      formatter_class=argparse.RawTextHelpFormatter, epilog=_EXAMPLE_)
 
-    subparsers = parser.add_subparsers(title='strategy', help='Strategy for fitting TACs.')
+    subparsers = parser.add_subparsers(title='strategy', description='Strategy for fitting TACs.',
+                                       help='Strategy for fitting TACs.')
 
     frame_avgd_parser = subparsers.add_parser('frame_avgd', help='Perform analysis on properly frame averaged '
                                                                  'TACs using scan information.')
@@ -95,37 +122,24 @@ def _generate_args() -> argparse.Namespace:
 
     for a_parser in sub_parser_list:
         add_common_io_args(a_parser)
+        add_common_analysis_args(a_parser)
+        add_common_print_args(a_parser)
+        match a_parser.prog:
+            case 'interp':
+                a_parser.add_argument("-t", "--input-fitting-threshold-in-mins", required=True, type=float,
+                                      help="Threshold in minutes for fitting the later half of the input function.")
+                a_parser.add_argument("-b", "--ignore-blood-volume", required=False,
+                                      default=False, action='store_true',
+                                      help="Whether to ignore any blood volume contributions while fitting.")
+            case 'frame_avgd':
+                a_parser.add_argument('-s', '--scan-metadata-path', required=True, type=str,
+                                      help="Path to the scan metadata file. Can also be the path to the .nii.gz file"
+                                           "if the metadata shares the scan name: `*.nii.gz` -> `*json`.")
+            case _:
+                pass
 
-
-    # IO group
-    add_common_io_args(parser)
-
-    # Analysis group
-    grp_analysis = parser.add_argument_group('Analysis Parameters')
-    grp_analysis.add_argument("-m", "--model", required=True, choices=['1tcm', '2tcm-k4zero', 'serial-2tcm'],
-                              help="Analysis method to be used.")
-    grp_analysis.add_argument("-t", "--input-fitting-threshold-in-mins", required=True, type=float,
-                              help="Threshold in minutes for fitting the later half of the input function.")
-    grp_analysis.add_argument("-b", "--ignore-blood-volume", required=False, default=False, action='store_true',
-                              help="Whether to ignore any blood volume contributions while fitting.")
-    grp_analysis.add_argument("-g", "--initial-guesses", required=False, nargs='+', type=float,
-                              help="Initial guesses for each fitting parameter.")
-    grp_analysis.add_argument("-l", "--lower-bounds", required=False, nargs='+', type=float,
-                              help="Lower bounds for each fitting parameter.")
-    grp_analysis.add_argument("-w", "--weighting-decay-constant", required=False, type=float, default=None,
-                              help="Decay constant for computing per-frame weighting for fits.")
-    grp_analysis.add_argument("-u", "--upper-bounds", required=False, nargs='+', type=float,
-                              help="Upper bounds for each fitting parameter.")
-    grp_analysis.add_argument("-f", "--max-fit-iterations", required=False, default=2500, type=int,
-                              help="Maximum number of function iterations")
-    grp_analysis.add_argument("-n", "--resample-num", required=False, default=512, type=int,
-                              help="Number of samples for linear interpolation of provided TACs.")
-    
-    # Printing arguments
-    grp_verbose = parser.add_argument_group('Additional Options')
-    grp_verbose.add_argument("--print", action="store_true", help="Whether to print the analysis results.")
-    
     return parser.parse_args()
+
 
 
 
@@ -169,7 +183,8 @@ def main():
                                       output_directory=args.output_directory,
                                       output_filename_prefix=args.output_filename_prefix,
                                       compartment_model=args.model,
-                                      parameter_bounds=bounds, weights=None,
+                                      parameter_bounds=bounds,
+                                      weights=None,
                                       resample_num=args.resample_num,
                                       aif_fit_thresh_in_mins=args.input_fitting_threshold_in_mins,
                                       max_func_iters=args.max_fit_iterations,
