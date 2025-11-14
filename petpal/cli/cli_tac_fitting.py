@@ -61,6 +61,19 @@ _EXAMPLE_ = ('Fitting a TAC to the serial 2TCM using the F18 decay constant (lam
              '--print')
 
 def add_common_io_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    r"""
+    Adds common input/output arguments to the provided argument parser.
+
+    This helper function configures arguments that are shared between all subcommands
+    for specifying input TAC paths, ROI TAC paths, output directory and output filename prefix.
+
+    Args:
+        parser (argparse.ArgumentParser): Argument parser (or subparser) to which the
+            common I/O arguments will be added.
+
+    Returns:
+        argparse._ArgumentGroup: The argument group containing the I/O arguments.
+    """
     grp_io = parser.add_argument_group('IO Paths and Prefixes')
     grp_io.add_argument("-i", "--input-tac-path", required=True, help="Path to the input TAC file.")
     grp_io.add_argument("-r", "--roi-tac-path", required=True, help="Path to the ROI TAC file. "
@@ -74,6 +87,17 @@ def add_common_io_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGro
 
 
 def add_common_analysis_args(parser: argparse.ArgumentParser):
+    r"""
+    Adds common analysis-related arguments to the provided argument parser.
+
+    This helper function configures arguments controlling model selection, parameter
+    initialization, parameter bounds, maximum number of fitting iterations and
+    resampling behavior.
+
+    Args:
+        parser (argparse.ArgumentParser): Argument parser (or subparser) to which the
+            analysis arguments will be added.
+    """
     grp_analysis = parser.add_argument_group('Analysis Parameters')
     grp_analysis.add_argument("-m", "--model", required=True,
                               choices=['1tcm', '2tcm-k4zero', 'serial-2tcm', '2tcm'],
@@ -93,6 +117,16 @@ def add_common_analysis_args(parser: argparse.ArgumentParser):
 
 
 def add_common_print_args(parser: argparse.ArgumentParser):
+    r"""
+    Adds common verbosity/printing arguments to the provided argument parser.
+
+    This helper function configures arguments related to optional printing of analysis
+    results to the console.
+
+    Args:
+        parser (argparse.ArgumentParser): Argument parser (or subparser) to which the
+            printing/verbosity arguments will be added.
+    """
     grp_verbose = parser.add_argument_group('Additional Options')
     grp_verbose.add_argument("--print", action="store_true", help="Whether to print the analysis results.")
 
@@ -178,6 +212,20 @@ def _generate_bounds(initial: Union[list, None],
 
 
 def fit_props_printer(fit_props: dict, segment: str | None = None) -> None:
+    r"""
+    Nicely formats and prints fit parameter estimates and uncertainties.
+
+    This function prints a table of fitted parameter values, standard errors and
+    percent errors. If a segment label is provided, it is printed as a header
+    before the table, which is useful when printing results for multiple ROIs.
+
+    Args:
+        fit_props (dict): Dictionary containing the fit results. It is expected to
+            contain a ``"FitProperties"`` entry with nested ``"FitValues"`` and
+            ``"FitStdErr"`` mappings of parameter names to numerical values.
+        segment (str, optional): Optional label for the TAC segment (for example,
+            ROI name). If provided, the label is printed above the table.
+    """
     title_str = f"{'Param':<5} {'FitVal':<6}    {'StdErr':<8} ({'%Err':>6})|"
     title_len = len(title_str)
     if segment :
