@@ -297,7 +297,7 @@ class WriteRegionalTacs:
             input_image_path (str | pathlib.Path): Path to input 4D PET image.
             segmentation_path (str | pathlib.Path): Path to 3D discrete segmentation image. Must
                 match input PET image space.
-            label_map_path (str | dict): Label map for use in the study. Provide name of a preset
+            label_map (str | dict): Label map for use in the study. Provide name of a preset
                 label map option such as 'freesurfer', the path to a label map JSON file, or a
                 Python dictionary with region mappings. For more details, see
                 :class:`LabelMapLoader<petpal.meta.label_maps.LabelMapLoader>`.
