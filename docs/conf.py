@@ -87,6 +87,8 @@ intersphinx_mapping = {
     'numba': ('https://numba.readthedocs.io/en/stable/', None),
     'sklearn': ('https://scikit-learn.org/stable/', None),
     'ants': ('https://antspy.readthedocs.io/en/stable/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'lmfit': ('https://lmfit.github.io/lmfit-py/', None),
 }
 
 def skip_main_funcs(app, what, name, obj, skip, options):

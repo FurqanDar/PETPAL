@@ -13,6 +13,7 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Callable
 
+import numba
 import numpy as np
 from scipy.interpolate import interp1d as scipy_interpolate
 from scipy.signal import convolve as scipy_convolve
@@ -953,3 +954,19 @@ class MultiTACAnalysisMixin:
             seg_labels.append(tmp_seg)
 
         return seg_labels
+
+
+def get_frame_index_pairs_from_fine_times(fine_times: np.ndarray,
+                                          frame_starts: np.ndarray,
+                                          frame_ends: np.ndarray) -> np.ndarray:
+    start_idx = np.searchsorted(fine_times, frame_starts)
+    end_idx = np.searchsorted(fine_times, frame_ends)
+    return np.asarray([start_idx, end_idx]).T
+
+
+@numba.njit(fastmath=True, cache=True)
+def get_frame_averaged_tac_vals(tac_vals: np.ndarray, frame_idx_pairs: np.ndarray) -> np.ndarray:
+    avg_tac_vals = np.zeros(len(frame_idx_pairs))
+    for frame_id, (start, end) in enumerate(frame_idx_pairs):
+        avg_tac_vals[frame_id] = np.mean(tac_vals[start:end])
+    return avg_tac_vals
