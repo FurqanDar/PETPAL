@@ -289,7 +289,7 @@ class WriteRegionalTacs:
     def __init__(self,
                  input_image_path: str | pathlib.Path,
                  segmentation_path: str | pathlib.Path,
-                 label_map: str | pathlib.Path,
+                 label_map: str | dict,
                  tac_extraction_func: Callable=voxel_average_w_uncertainty):
         """Initialize WriteRegionalTacs.
         
@@ -297,8 +297,10 @@ class WriteRegionalTacs:
             input_image_path (str | pathlib.Path): Path to input 4D PET image.
             segmentation_path (str | pathlib.Path): Path to 3D discrete segmentation image. Must
                 match input PET image space.
-            label_map_path (str | pathlib.Path): Path to label map 'dseg.tsv' file containing names
-                and mapping for regions of interest in the study.
+            label_map_path (str | dict): Label map for use in the study. Provide name of a preset
+                label map option such as 'freesurfer', the path to a label map JSON file, or a
+                Python dictionary with region mappings. For more details, see
+                :class:`LabelMapLoader<petpal.meta.label_maps.LabelMapLoader>`.
             tac_extraction_func (Callable): Function to get TAC from 2D array of voxels. Default
                 :func:`~petpal.preproc.regional_tac_extraction.voxel_average_w_uncertainty`.
         """
