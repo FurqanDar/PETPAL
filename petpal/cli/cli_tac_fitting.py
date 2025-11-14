@@ -84,6 +84,19 @@ def _generate_args() -> argparse.Namespace:
                                                  'to PET Time Activity Curves (TACs).',
                                      formatter_class=argparse.RawTextHelpFormatter, epilog=_EXAMPLE_)
 
+    subparsers = parser.add_subparsers(title='strategy', help='Strategy for fitting TACs.')
+
+    frame_avgd_parser = subparsers.add_parser('frame_avgd', help='Perform analysis on properly frame averaged '
+                                                                 'TACs using scan information.')
+    interpolated_parser = subparsers.add_parser('interp', help='Perform analysis on interpolated TACs '
+                                                               'without using scan information.')
+
+    sub_parser_list = [frame_avgd_parser, interpolated_parser]
+
+    for a_parser in sub_parser_list:
+        add_common_io_args(a_parser)
+
+
     # IO group
     add_common_io_args(parser)
 
