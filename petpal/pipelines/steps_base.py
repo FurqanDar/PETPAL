@@ -107,9 +107,15 @@ class StepsAPI:
         else:
             print(f"(Info): Skipping {self.name}")
 
+
 class BaseProcessingStep(StepsAPI):
-    def __init__(self, name: str, callable_target: Callable | type,
-                 *args, init_kwargs: dict = None, call_kwargs: dict = None, **kwargs):
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable | type,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs):
         StepsAPI.__init__(self, skip_step=False, name=name)
         self.callable_target: Callable | type = callable_target
         self.is_class: bool = inspect.isclass(callable_target)
