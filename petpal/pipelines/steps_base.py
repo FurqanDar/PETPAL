@@ -31,7 +31,10 @@ class StepsAPI:
 
     """
 
-    def __init__(self, skip_step: bool = False):
+    def __init__(self,
+                 name: str,
+                 skip_step: bool = False):
+        self.name = name
         self.skip_step = skip_step
 
     def execute(self, *args, **kwargs):
@@ -91,7 +94,9 @@ class StepsAPI:
 
     def __call__(self, *args, **kwargs):
         if not self.skip_step:
+            print(f"(Info): Executing {self.name}")
             self.execute(*args, **kwargs)
+            print(f"(Info): Finished {self.name}")
 
 
 
