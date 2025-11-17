@@ -1,6 +1,7 @@
 from . import graphical_plots
 from . import image_visualization
 from . import qc_plots
+from . import tac_plots
 
 def main():
     print("PETPAL - Pre-processing")

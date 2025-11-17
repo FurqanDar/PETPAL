@@ -388,7 +388,7 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     """
     A step for fitting compartment models to TAC data using
-    :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
+    :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.
 
     This class sets up the compartment model fitting, initializes required paths and parameters,
     and provides class methods for creating default steps with common compartment models like 1TCM,
@@ -418,13 +418,13 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             output_directory (str): Directory where output files will be saved.
             output_prefix (str): Prefix for the output files.
             compartment_model (str, optional): Compartment model to be used for fitting. Defaults to '2tcm-k4zer0'.
-            **kwargs: Additional keyword arguments to be included in initialization for :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
+            **kwargs: Additional keyword arguments to be included in initialization for :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.
         """
         TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, roi_tacs_dir=roi_tacs_dir,
                                       output_directory=output_directory, output_prefix=output_prefix,
                                       is_ref_tac_based_model=False, compartment_model=compartment_model, **kwargs)
         
-        ObjectBasedStep.__init__(self, name=f'roi_{compartment_model}_fit', class_type=tac_fitting.MultiTACTCMAnalsyis,
+        ObjectBasedStep.__init__(self, name=f'roi_{compartment_model}_fit', class_type=tac_fitting.MultiTACTCMAnalysis,
                                  init_kwargs=self.init_kwargs, call_kwargs=dict())
     
     def __repr__(self):
@@ -454,7 +454,7 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     def default_1tcm(cls, **kwargs):
         """
         Creates a default instance for 1TCM compartment model fitting using
-        :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
+        :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.
         All paths are set to empty-strings.
 
         Args:
@@ -470,7 +470,7 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     def default_serial2tcm(cls, **kwargs):
         """
         Creates a default instance for serial-2TCM compartment model fitting using
-        :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
+        :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.
         All paths are set to empty-strings.
 
         Args:
@@ -486,7 +486,7 @@ class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     def default_irreversible_2tcm(cls, **kwargs):
         """
         Creates a default instance for irreversible-2TCM compartment model fitting using
-        :class:`MultiTACTCMAnalsyis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalsyis>`.
+        :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.
         All paths are set to empty-strings.
 
         Args:
@@ -608,7 +608,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             run_kwargs: Additional keyword arguments passed on to
                 GraphicalAnalysisParametricImage.__call__().
         """
-        TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, pet4D_img_path=input_image_path,
+        TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, input_image_path=input_image_path,
                                       roi_tacs_dir='', output_directory=output_directory, output_prefix=output_prefix,
                                       is_ref_tac_based_model=False, )
         del self.init_kwargs['roi_tacs_dir']
@@ -662,7 +662,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             input_image_path (str): Path to the input image.
         """
         self._input_image_path = input_image_path
-        self.init_kwargs['pet4D_img_path'] = input_image_path
+        self.init_kwargs['input_image_path'] = input_image_path
     
     def set_input_as_output_from(self, *sending_steps: PreprocStepType) -> None:
         """

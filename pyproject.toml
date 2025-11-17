@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "petpal"
-version = "0.4.9"
+version = "0.5.2"
 description = "PET-PAL (Positron Emission Tomography Processing and Analysis Library)"
 authors = [
     {name = "Furqan Dar", email = "dar@wustl.edu"},
@@ -41,7 +41,6 @@ classifiers = [  # These are added to PyPI package when published; Used for sear
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Topic :: Scientific/Engineering :: Image Processing",
-
     # Python Versions (This does NOT restrict in any way; merely for PyPI searches)
     "Programming Language :: Python :: 3",
 ]
@@ -62,4 +61,4 @@ classifiers = [  # These are added to PyPI package when published; Used for sear
     petpal-pet-stats = "petpal.cli.cli_stats:main"
 
 [project.urls]
-    Repository = "https://github.com/FurqanDar/PETPAL.git"
+    Repository = "https://github.com/PETPAL-WUSM/PETPAL.git"
