@@ -194,7 +194,7 @@ class BaseProcessingStep(StepsAPI):
         empty_kwargs = []
         for arg_name, arg_val in unset_args_dict.items():
             if arg_val is inspect.Parameter.empty:
-                if (arg_name not in kwargs) and (arg_name != 'self'):
+                if (arg_name not in kwargs):
                     empty_kwargs.append(arg_name)
         return empty_kwargs
 
