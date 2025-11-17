@@ -126,8 +126,7 @@ class FunctionBasedStep(StepsAPI):
             **kwargs: Keyword arguments to be passed to the function.
             
         """
-        StepsAPI.__init__(self, skip_step=False)
-        self.name = name
+        StepsAPI.__init__(self, name=name, skip_step=False)
         self.function = function
         self._func_name = function.__name__
         self.args = args
@@ -306,7 +305,7 @@ class ObjectBasedStep(StepsAPI):
             init_kwargs (dict): Keyword arguments for initializing the class.
             call_kwargs (dict): Keyword arguments for invoking the class.
         """
-        StepsAPI.__init__(self, skip_step=False)
+        StepsAPI.__init__(self, name=name, skip_step=False)
         self.name: str = name
         self.class_type: type = class_type
         self.init_kwargs: ArgsDict = ArgsDict(init_kwargs)
