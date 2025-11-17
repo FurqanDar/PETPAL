@@ -1,6 +1,6 @@
 import inspect
 from typing import Callable
-
+import types
 
 class ArgsDict(dict):
     """
@@ -77,6 +77,17 @@ class StepsAPI:
             :meth:`TACsFromSegmentationStep<petpal.pipelines.preproc_steps.TACsFromSegmentationStep.infer_outputs_from_inputs>`
         """
         raise NotImplementedError
+
+    def configure(self,
+                  input_setter: Callable = None,
+                  executor: Callable = None,
+                  output_inferrer: Callable = None):
+        if input_setter:
+            self.set_input_as_output_from = types.MethodType(input_setter, self)
+        if executor:
+            self.execute = types.MethodType(executor, self)
+        if output_inferrer:
+            self.infer_outputs_from_inputs = types.MethodType(output_inferrer, self)
 
     def __call__(self, *args, **kwargs):
         if not self.skip_step:
