@@ -16,10 +16,17 @@ class ArgsDict(dict):
         The string output will list each key-value pair on a new line with indentation to improve readability.
         
         Returns:
-            str: A string containing the formatted key-value pairs, indented for clarity.
+            str: A string containing the formatted key-value pairs, indented for clarity, and only to be used internally
+                for formatting inputs of steps.
         """
-        rep_str = [f'    {arg}={val}' for arg, val in self.items()]
+        rep_str = [f'\t{arg}={repr(val)}' for arg, val in self.items()]
         return ',\n'.join(rep_str)
+
+    def __repr__(self):
+        rep_str = [f'{type(self).__name__}'+'({']
+        rep_str.extend([f'  {repr(arg)}:{repr(val)},' for arg, val in self.items()])
+        rep_str.append('})')
+        return '\n'.join(rep_str)
 
 
 class StepsAPI:
@@ -114,18 +121,80 @@ class BaseProcessingStep(StepsAPI):
         # Initialize storage
         self.init_kwargs = ArgsDict(init_kwargs or {})
         self.call_kwargs = ArgsDict(call_kwargs or {})
-        self.args = args
+        self.args = args or ()
         self.kwargs = ArgsDict(kwargs or {})
-
         if self.is_class:
-            # Object-based
             self.init_sig = self._get_valid_signature_for_method(callable_target.__init__)
             self.call_sig = self._get_valid_signature_for_method(callable_target.__call__)
             self._validate_object()
         else:
-            # Function-based: convert args to init_kwargs (fake names), kwargs to call_kwargs
             self.func_sig = inspect.signature(callable_target)
             self._validate_function()
+
+    def __str__(self):
+        if self.is_class:
+            unset_init = self._get_unset_object_args(self.init_sig, self.init_kwargs)
+            unset_call = self._get_unset_object_args(self.call_sig, self.call_kwargs)
+
+            info_str = [
+                f'({type(self).__name__} Info):',
+                f'Step Name: {self.name}',
+                f'Class Name: {self.callable_target.__name__}',
+                'Initialization Arguments:',
+                f'{self.init_kwargs}',
+                'Default Initialization Arguments:',
+                f'{unset_init if unset_init else "N/A"}',
+                'Call Arguments:',
+                f'{self.call_kwargs if self.call_kwargs else "N/A"}',
+                'Default Call Arguments:',
+                f'{unset_call if unset_call else "N/A"}'
+                ]
+        else:
+            # For functions, show the reconstructed function interface
+            func_params = list(inspect.signature(self.callable_target).parameters)
+            reconstructed_args = ArgsDict()
+            for arg_name, arg_val in zip(func_params, self.args):
+                reconstructed_args[arg_name] = arg_val
+            info_str = [
+                f'({type(self).__name__} Info):',
+                f'Step Name: {self.name}',
+                f'Function Name: {self.callable_target.__name__}',
+                'Positional Arguments:',
+                f'    {", ".join(reconstructed_args)}' if reconstructed_args else "N/A",
+                'Keyword Arguments:',
+                f'{self.kwargs if self.kwargs else "N/A"}',
+                'Default Arguments:',
+                f'{self._get_unset_function_args()}'
+                ]
+        return '\n'.join(info_str)
+
+    def __repr__(self):
+        cls_name = type(self).__name__
+        target_name = f'{self.callable_target.__module__}.{self.callable_target.__name__}'
+
+        info_str = [f'{cls_name}(']
+        info_str.append(f'\tname={repr(self.name)},')
+        info_str.append(f'\tcallable_target={target_name},')
+
+        if self.is_class:
+            if self.init_kwargs:
+                info_str.append('init_kwargs={')
+                for k, v in self.init_kwargs.items():
+                    info_str.append(f'    {repr(k)}: {repr(v)},')
+                info_str.append('},')
+            if self.call_kwargs:
+                info_str.append('call_kwargs={')
+                for k, v in self.call_kwargs.items():
+                    info_str.append(f'    {repr(k)}: {repr(v)},')
+                info_str.append('},')
+        else:
+            if self.args:
+                info_str.append(f'*{str(self.args)},')
+            if self.kwargs:
+                info_str.append(f'{str(self.kwargs)},')
+
+        info_str.append(')')
+        return '\n'.join(info_str)
 
     def _validate_parameter_usage(self, args, kwargs, init_kwargs, call_kwargs):
         if self.is_class:
@@ -144,6 +213,7 @@ class BaseProcessingStep(StepsAPI):
             if call_kwargs is not None:
                 raise ValueError("call_kwargs is not allowed when passing a function. "
                                  "Use keyword arguments (**kwargs) instead.")
+
     def execute(self):
         if self.is_class:
             obj_instance = self.callable_target(**self.init_kwargs)
@@ -198,7 +268,6 @@ class BaseProcessingStep(StepsAPI):
                     empty_kwargs.append(arg_name)
         return empty_kwargs
 
-
     def _get_funcs_empty_default_kwargs(self) -> list:
         assert not self.is_class, ("args and kwargs do not exist when objects are passed in. MORE TO WRITE")
         return self._get_kwarg_names_without_default_values_for_signature(self.func_sig,
@@ -206,12 +275,6 @@ class BaseProcessingStep(StepsAPI):
                                                                           self.kwargs)
 
     def _validate_function(self) -> None:
-        """
-        Validates that all mandatory arguments have been provided.
-
-        Raises:
-            RuntimeError: If any mandatory arguments are missing.
-        """
         empty_kwargs = self._get_funcs_empty_default_kwargs()
         if empty_kwargs:
             err_msg = [f'For {self.callable_target.__name__}, the following arguments must be set:']
@@ -230,8 +293,6 @@ class BaseProcessingStep(StepsAPI):
     def _get_names_of_empty_objects_init_kwargs(self, *additional_args: tuple):
         self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
 
-
-
     def _validate_object_call_kwargs(self):
         empty_call_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
         if  empty_call_kwargs:
@@ -240,12 +301,9 @@ class BaseProcessingStep(StepsAPI):
             err_msg.extend(f"  {arg}" for arg in empty_call_kwargs)
             raise RuntimeError("\n".join(err_msg))
 
-
     def _validate_object(self):
-        """Original object validation logic"""
         empty_init_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.init_sig, self.init_kwargs)
         empty_call_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
-
         if empty_init_kwargs or empty_call_kwargs:
             err_msg = [f"For {self.callable_target.__name__}, the following arguments must be set:"]
             if empty_init_kwargs:
@@ -255,6 +313,37 @@ class BaseProcessingStep(StepsAPI):
                 err_msg.append("Calling:")
                 err_msg.extend(f"  {arg}" for arg in empty_call_kwargs)
             raise RuntimeError("\n".join(err_msg))
+
+    def can_potentially_run(self):
+        if self.is_class:
+            return (self._all_non_empty_strings(self.init_kwargs.values()) and
+                    self._all_non_empty_strings(self.call_kwargs.values()))
+        else:
+            return (self._all_non_empty_strings(self.init_kwargs.values()) and
+                    self._all_non_empty_strings(self.call_kwargs.values()))
+
+    def _all_non_empty_strings(self, values):
+        return all(val != '' for val in values)
+
+    def _get_unset_function_args(self):
+        assert not self.is_class, "Cannot get unset function arguments when a class is passed in."
+        unset_args = ArgsDict()
+        func_params = self.func_sig.parameters
+        provided_args = set(self.kwargs.keys())
+
+        for param_name, param in func_params.items():
+            if (param_name not in provided_args and
+                    param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
+                unset_args[param_name] = param.default
+        return unset_args
+
+    def _get_unset_object_args(self, sig: inspect.Signature, kwargs: dict):
+        assert self.is_class, "Cannot get unset object arguments when a function is passed in."
+        unset_args = ArgsDict()
+        for arg_name, param in sig.parameters.items():
+            if (arg_name not in kwargs and param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
+                unset_args[arg_name] = param.default
+        return unset_args
 
 
 class FunctionBasedStep(StepsAPI):
