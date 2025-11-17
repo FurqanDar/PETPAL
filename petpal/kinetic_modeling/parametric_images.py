@@ -570,7 +570,7 @@ class GraphicalAnalysisParametricImage:
 
     Attributes:
         input_tac_path (str): Absolute path to the input Time-Activity Curve (TAC) file.
-        pet4D_img_path (str): Absolute path to the 4D PET image file.
+        input_image_path (str): Absolute path to the 4D PET image file.
         output_directory (str): Absolute path to the output directory.
         output_filename_prefix (str): Prefix of the output file names.
         analysis_props (dict): Dictionary of properties of the graphical analysis.
@@ -583,7 +583,7 @@ class GraphicalAnalysisParametricImage:
 
     def __init__(self,
                  input_tac_path: str,
-                 pet4D_img_path: str,
+                 input_image_path: str,
                  output_directory: str,
                  output_filename_prefix: str) -> None:
         """
@@ -596,7 +596,7 @@ class GraphicalAnalysisParametricImage:
 
         Args:
             input_tac_path (str): Path to the input Time-Activity Curve (TAC) file.
-            pet4D_img_path (str): Path to the 4D PET image file.
+            input_image_path (str): Path to the 4D PET image file.
             output_directory (str): Path to the destination directory where output files will be
                 saved.
             output_filename_prefix (str): Prefix to use for the names of the output files.
@@ -605,8 +605,8 @@ class GraphicalAnalysisParametricImage:
             None
         """
         self.input_tac_path = os.path.abspath(input_tac_path)
-        self.pet4D_img_path = os.path.abspath(pet4D_img_path)
-        self.pet_img = ants.image_read(filename=pet4D_img_path)
+        self.input_image_path = os.path.abspath(input_image_path)
+        self.pet_img = ants.image_read(filename=input_image_path)
         self.output_directory = os.path.abspath(output_directory)
         self.output_filename_prefix = output_filename_prefix
         self.analysis_props = self.init_analysis_props()
@@ -645,7 +645,7 @@ class GraphicalAnalysisParametricImage:
         """
         props = {
             'FilePathPTAC': self.input_tac_path,
-            'FilePathTTAC': self.pet4D_img_path,
+            'FilePathTTAC': self.input_image_path,
             'MethodName': None,
             'ImageDimensions': None,
             'StartFrameTime': None,
@@ -937,9 +937,9 @@ class GraphicalAnalysisParametricImage:
             tmp_intercept_img = ants.from_numpy_like(self.intercept_image, image=template_img)
             ants.image_write(tmp_intercept_img,f"{file_name_prefix}_intercept.nii.gz")
 
-            safe_copy_meta(input_image_path=self.pet4D_img_path,
+            safe_copy_meta(input_image_path=self.input_image_path,
                            out_image_path=f"{file_name_prefix}_slope.nii.gz")
-            safe_copy_meta(input_image_path=self.pet4D_img_path,
+            safe_copy_meta(input_image_path=self.input_image_path,
                            out_image_path=f"{file_name_prefix}_intercept.nii.gz")
         except IOError as e:
             print("An IOError occurred while attempting to write the NIfTI image files.")

@@ -608,7 +608,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             run_kwargs: Additional keyword arguments passed on to
                 GraphicalAnalysisParametricImage.__call__().
         """
-        TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, pet4D_img_path=input_image_path,
+        TACAnalysisStepMixin.__init__(self, input_tac_path=input_tac_path, input_image_path=input_image_path,
                                       roi_tacs_dir='', output_directory=output_directory, output_prefix=output_prefix,
                                       is_ref_tac_based_model=False, )
         del self.init_kwargs['roi_tacs_dir']
@@ -662,7 +662,7 @@ class ParametricGraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             input_image_path (str): Path to the input image.
         """
         self._input_image_path = input_image_path
-        self.init_kwargs['pet4D_img_path'] = input_image_path
+        self.init_kwargs['input_image_path'] = input_image_path
     
     def set_input_as_output_from(self, *sending_steps: PreprocStepType) -> None:
         """
