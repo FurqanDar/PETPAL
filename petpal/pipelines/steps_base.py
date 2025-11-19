@@ -140,10 +140,28 @@ class BaseProcessingStep(StepsAPI):
 
     def validate(self):
         errors = []
+
+        target_sig = self.init_sig if self.is_class else self.func_sig
+        target_kwargs = self.init_kwargs if self.is_class else self.kwargs
+
+        params_list = list(target_sig.parameters.values())
+        start_idx = 1 if (self.is_class) else 0
+
+        covered_params = params_list[start_idx: start_idx + len(self.args)]
+        covered_names = [p.name for p in covered_params]
+
+        collision = set(covered_names).intersection(set(target_kwargs.keys()))
+        if collision:
+            errors.append(
+                    f"Collision detected: Arguments {list(collision)} were passed as both positional (*args) and "
+                    f"keyword ({'**kwargs' if self.is_function else 'init_kwargs'}).")
+            args_idx = [str(covered_names.index(arg)) for arg in collision]
+            errors.append(f"Passed kwargs collide with passed args at idx: {', '.join(args_idx)}")
+
         if self.is_class:
             missing_init = self._get_missing_args(
-                            sig=self.init_sig,
-                            set_kwargs=self.init_kwargs,
+                            sig=target_sig,
+                            set_kwargs=target_kwargs,
                             args_satisfied_by_positionals=len(self.args),
                             skip_self=True
                             )
@@ -164,8 +182,8 @@ class BaseProcessingStep(StepsAPI):
 
         else:
             missing_func = self._get_missing_args(
-                    sig=self.func_sig,
-                    set_kwargs=self.kwargs,
+                    sig=target_sig,
+                    set_kwargs=target_kwargs,
                     args_satisfied_by_positionals=len(self.args),
                     skip_self=False
                     )
@@ -180,11 +198,11 @@ class BaseProcessingStep(StepsAPI):
 
     def __str__(self):
         if self.is_class:
-            default_init = self._get_missing_args(sig=self.init_sig,
+            default_init = self._get_default_args(sig=self.init_sig,
                                                   set_kwargs=self.init_kwargs,
                                                   args_satisfied_by_positionals=len(self.args),
                                                   skip_self=True)
-            default_call = self._get_missing_args(sig=self.call_sig,
+            default_call = self._get_default_args(sig=self.call_sig,
                                                   set_kwargs=self.call_kwargs,
                                                   args_satisfied_by_positionals=len(self.args),
                                                   skip_self=True)
