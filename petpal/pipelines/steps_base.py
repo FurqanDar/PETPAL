@@ -122,7 +122,7 @@ class BaseProcessingStep(StepsAPI):
         self.is_function: bool = not self.is_class
 
         # Validate parameter usage based on Callable type
-        self._validate_parameter_usage(args=args, kwargs=kwargs, init_kwargs=init_kwargs, call_kwargs=call_kwargs)
+        self._validate_parameter_usage(kwargs=kwargs, init_kwargs=init_kwargs, call_kwargs=call_kwargs)
 
         # Initialize storage
         self.init_kwargs = ArgsDict(init_kwargs or {})
@@ -202,7 +202,7 @@ class BaseProcessingStep(StepsAPI):
         info_str.append(')')
         return '\n'.join(info_str)
 
-    def _validate_parameter_usage(self, args, kwargs, init_kwargs, call_kwargs):
+    def _validate_parameter_usage(self, kwargs, init_kwargs, call_kwargs):
         if self.is_class:
             if kwargs:
                 raise ValueError("Keyword arguments (**kwargs) are not allowed when passing a class. "
@@ -351,6 +351,14 @@ class BaseProcessingStep(StepsAPI):
             if (arg_name not in kwargs_to_ignore and param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
                 unset_args[arg_name] = param.default
         return unset_args
+
+    def _get_missing_args(self,
+                          sig: inspect.Signature,
+                          set_kwargs: dict,
+                          args_satisfied_by_positionals: int = 0,
+                          skip_self: bool = True):
+
+        pass
 
 
 class FunctionBasedStep(StepsAPI):
