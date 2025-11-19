@@ -352,13 +352,52 @@ class BaseProcessingStep(StepsAPI):
                 unset_args[arg_name] = param.default
         return unset_args
 
-    def _get_missing_args(self,
+    @classmethod
+    def _get_args_not_set_in_kwargs(cls,
+                                    sig: inspect.Signature,
+                                    set_kwargs: dict | None = None,
+                                    args_satisfied_by_positionals: int = 0,
+                                    skip_self: bool = True):
+        missing_kwargs = []
+        full_params = list(sig.parameters.values())
+        if not full_params:
+            return missing_kwargs
+
+        start_idx = 1 if (skip_self and full_params[0].name == 'self') else 0
+        check_start_idx = start_idx + args_satisfied_by_positionals
+
+        for i in range(check_start_idx, len(full_params)):
+            param = full_params[i]
+            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+                continue
+            if param.name not in set_kwargs:
+                missing_kwargs.append(param)
+
+        return missing_kwargs
+
+    @classmethod
+    def _get_missing_args(cls,
                           sig: inspect.Signature,
-                          set_kwargs: dict,
+                          set_kwargs: dict | None = None,
                           args_satisfied_by_positionals: int = 0,
                           skip_self: bool = True):
+        missing_args = cls._get_args_not_set_in_kwargs(sig=sig,
+                                                       set_kwargs=set_kwargs,
+                                                       args_satisfied_by_positionals=args_satisfied_by_positionals,
+                                                       skip_self=skip_self)
+        return [arg for arg in missing_args if arg.default is inspect.Parameter.empty]
 
-        pass
+    @classmethod
+    def _get_default_args(cls,
+                          sig: inspect.Signature,
+                          set_kwargs: dict | None = None,
+                          args_satisfied_by_positionals: int = 0,
+                          skip_self: bool = True):
+        missing_args = cls._get_args_not_set_in_kwargs(sig=sig,
+                                                       set_kwargs=set_kwargs,
+                                                       args_satisfied_by_positionals=args_satisfied_by_positionals,
+                                                       skip_self=skip_self)
+        return [arg for arg in missing_args if arg.default is not inspect.Parameter.empty]
 
 
 class FunctionBasedStep(StepsAPI):
