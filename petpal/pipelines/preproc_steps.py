@@ -436,45 +436,6 @@ class ResampleBloodTACStep(FunctionBasedStep):
         return cls(input_raw_blood_tac_path='', input_image_path='', out_tac_path='', lin_fit_thresh_in_mins=30.0)
 
 
-class ImageToImageStepV2(BaseProcessingStep):
-    def __init__(self,
-                 name: str,
-                 callable_target: Callable | type,
-                 input_image_path: str,
-                 output_image_path: str,
-                 *args,
-                 init_kwargs: dict | None = None,
-                 call_kwargs: dict | None = None,
-                 **kwargs):
-        BaseProcessingStep.__init__(self, name, callable_target,
-                                    *(input_image_path, output_image_path, *args),
-                                    init_kwargs=init_kwargs,
-                                    call_kwargs=call_kwargs,
-                                    **kwargs)
-
-    @property
-    def input_image_path(self):
-        return copy.deepcopy(self.args[0])
-
-    @input_image_path.setter
-    def input_image_path(self, input_image_path: str):
-        self.args[0] = copy.deepcopy(input_image_path)
-
-    @property
-    def output_image_path(self):
-        return copy.deepcopy(self.args[1])
-
-    @output_image_path.setter
-    def output_image_path(self, output_image_path: str):
-        self.args[1] = copy.deepcopy(output_image_path)
-
-    def execute(self, copy_meta_file: bool = True) -> None:
-        super().execute()
-        if copy_meta_file:
-            print("(Info): Copying meta data file for step.")
-            safe_copy_meta(input_image_path=self.input_image_path, out_image_path=self.output_image_path)
-
-
 class ImageToImageStep(FunctionBasedStep):
     """
     A step in a processing pipeline for processing and transforming image files. This class handles input and output
