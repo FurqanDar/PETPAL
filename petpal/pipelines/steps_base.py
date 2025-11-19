@@ -28,6 +28,10 @@ class ArgsDict(dict):
         rep_str.append('})')
         return '\n'.join(rep_str)
 
+    @classmethod
+    def from_default_params(cls, params: list[inspect.Parameter]):
+        return cls({param.name: param.default for param in params})
+
 
 class StepsAPI:
     """
@@ -139,9 +143,17 @@ class BaseProcessingStep(StepsAPI):
 
     def __str__(self):
         if self.is_class:
-            unset_init = self._get_unset_object_args(self.init_sig, self.init_kwargs, len(self.args))
-            unset_call = self._get_unset_object_args(self.call_sig, self.call_kwargs)
+            default_init = self._get_missing_args(sig=self.init_sig,
+                                                  set_kwargs=self.init_kwargs,
+                                                  args_satisfied_by_positionals=len(self.args),
+                                                  skip_self=True)
+            default_call = self._get_missing_args(sig=self.call_sig,
+                                                  set_kwargs=self.call_kwargs,
+                                                  args_satisfied_by_positionals=len(self.args),
+                                                  skip_self=True)
 
+            default_init = ArgsDict.from_default_params(default_init)
+            default_call = ArgsDict.from_default_params(default_call)
             info_str = [
                 f'({type(self).__name__} Info):',
                 f'Step Name: {self.name}',
@@ -149,15 +161,18 @@ class BaseProcessingStep(StepsAPI):
                 'Initialization Arguments:',
                 f'{self.init_kwargs}',
                 'Default Initialization Arguments:',
-                f'{unset_init if unset_init else "N/A"}',
+                f'{default_init if default_init else "N/A"}',
                 'Call Arguments:',
                 f'{self.call_kwargs if self.call_kwargs else "N/A"}',
                 'Default Call Arguments:',
-                f'{unset_call if unset_call else "N/A"}'
+                f'{default_call if default_call else "N/A"}'
                 ]
         else:
-            # For functions, show the reconstructed function interface
             func_params = list(inspect.signature(self.callable_target).parameters)
+            default_args = self._get_default_args(sig=self.func_sig,
+                                                  set_kwargs=self.kwargs,
+                                                  args_satisfied_by_positionals=len(self.args),
+                                                  skip_self=False)
             reconstructed_args = ArgsDict()
             for arg_name, arg_val in zip(func_params, self.args):
                 reconstructed_args[arg_name] = arg_val
@@ -166,11 +181,11 @@ class BaseProcessingStep(StepsAPI):
                 f'Step Name: {self.name}',
                 f'Function Name: {self.callable_target.__name__}',
                 'Positional Arguments:',
-                f'    {", ".join(reconstructed_args)}' if reconstructed_args else "N/A",
+                f'{reconstructed_args}' if reconstructed_args else "N/A",
                 'Keyword Arguments:',
                 f'{self.kwargs if self.kwargs else "N/A"}',
                 'Default Arguments:',
-                f'{self._get_unset_function_args()}'
+                f'{ArgsDict.from_default_params(default_args)}' if default_args else "N/A",
                 ]
         return '\n'.join(info_str)
 
@@ -262,9 +277,6 @@ class BaseProcessingStep(StepsAPI):
         unset_args_dict = self._get_arguments_not_set_in_kwargs_for_signature(sig=sig,
                                                                               args=args,
                                                                               kwargs=kwargs)
-        print("Calling _get_kwarg_names_without_default_values_for_signature")
-        print(args)
-        print(unset_args_dict)
         empty_kwargs = []
         for arg_name, arg_val in unset_args_dict.items():
             if arg_val is inspect.Parameter.empty:
