@@ -139,7 +139,7 @@ class BaseProcessingStep(StepsAPI):
 
     def __str__(self):
         if self.is_class:
-            unset_init = self._get_unset_object_args(self.init_sig, self.init_kwargs)
+            unset_init = self._get_unset_object_args(self.init_sig, self.init_kwargs, len(self.args))
             unset_call = self._get_unset_object_args(self.call_sig, self.call_kwargs)
 
             info_str = [
@@ -204,15 +204,10 @@ class BaseProcessingStep(StepsAPI):
 
     def _validate_parameter_usage(self, args, kwargs, init_kwargs, call_kwargs):
         if self.is_class:
-            # For classes: only init_kwargs and call_kwargs allowed
             if kwargs:
                 raise ValueError("Keyword arguments (**kwargs) are not allowed when passing a class. "
                                  "Use init_kwargs and call_kwargs instead.")
-            if args:
-                raise ValueError("Keyword arguments (*args) are not allowed when passing a class. "
-                                 "Use init_kwargs and call_kwargs instead.")
         else:
-            # For functions: only args and kwargs allowed
             if init_kwargs is not None:
                 raise ValueError("init_kwargs is not allowed when passing a function. "
                                  "Use positional arguments (*args) instead.")
@@ -222,10 +217,9 @@ class BaseProcessingStep(StepsAPI):
 
     def execute(self):
         if self.is_class:
-            obj_instance = self.callable_target(**self.init_kwargs)
+            obj_instance = self.callable_target(*self.args, **self.init_kwargs)
             obj_instance(**self.call_kwargs)
         else:
-            # Reconstruct original function call from object format
             self.callable_target(*self.args, **self.kwargs)
 
     def _get_valid_signature_for_method(self, method: Callable) -> inspect.Signature:
@@ -246,6 +240,7 @@ class BaseProcessingStep(StepsAPI):
         unset_args_dict = ArgsDict()
         func_params = sig.parameters
         arg_names = list(func_params)
+        print(args)
         for arg_name in arg_names[len(args):]:
             if arg_name not in kwargs:
                 if (func_params[arg_name].kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
@@ -267,6 +262,9 @@ class BaseProcessingStep(StepsAPI):
         unset_args_dict = self._get_arguments_not_set_in_kwargs_for_signature(sig=sig,
                                                                               args=args,
                                                                               kwargs=kwargs)
+        print("Calling _get_kwarg_names_without_default_values_for_signature")
+        print(args)
+        print(unset_args_dict)
         empty_kwargs = []
         for arg_name, arg_val in unset_args_dict.items():
             if arg_val is inspect.Parameter.empty:
@@ -287,29 +285,27 @@ class BaseProcessingStep(StepsAPI):
             err_msg.extend([f'    {arg_name}' for arg_name in empty_kwargs])
             raise RuntimeError("\n".join(err_msg))
 
-    def _get_names_of_empty_object_kwargs_for_signature(self, sig: inspect.Signature, kwargs: dict) -> list:
+    def _get_names_of_empty_object_kwargs_for_signature(self,
+                                                        sig: inspect.Signature,
+                                                        kwargs_to_skip: dict,
+                                                        skip_first_n: int = 0) -> list:
         empty_args = []
-        for arg_name, param in sig.parameters.items():
-            if (arg_name not in kwargs and arg_name != 'self' and
+        for argID, (arg_name, param) in enumerate(sig.parameters.items()):
+            if argID < skip_first_n:
+                continue
+            if (arg_name not in kwargs_to_skip and arg_name != 'self' and
                     param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD and
                     param.default is inspect.Parameter.empty):
                 empty_args.append(arg_name)
         return empty_args
 
-    def _get_names_of_empty_objects_init_kwargs(self, *additional_args: tuple):
-        self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
-
-    def _validate_object_call_kwargs(self):
-        empty_call_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
-        if  empty_call_kwargs:
-            err_msg = [f"For {self.callable_target.__name__}, the following arguments must be set:"]
-            err_msg.append("Calling:")
-            err_msg.extend(f"  {arg}" for arg in empty_call_kwargs)
-            raise RuntimeError("\n".join(err_msg))
-
     def _validate_object(self):
-        empty_init_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.init_sig, self.init_kwargs)
-        empty_call_kwargs = self._get_names_of_empty_object_kwargs_for_signature(self.call_sig, self.call_kwargs)
+        empty_init_kwargs = self._get_names_of_empty_object_kwargs_for_signature(sig=self.init_sig,
+                                                                                 kwargs_to_skip=self.init_kwargs,
+                                                                                 skip_first_n=len(self.args))
+        empty_call_kwargs = self._get_names_of_empty_object_kwargs_for_signature(sig=self.call_sig,
+                                                                                 kwargs_to_skip=self.call_kwargs,
+                                                                                 skip_first_n=0)
         if empty_init_kwargs or empty_call_kwargs:
             err_msg = [f"For {self.callable_target.__name__}, the following arguments must be set:"]
             if empty_init_kwargs:
@@ -343,11 +339,16 @@ class BaseProcessingStep(StepsAPI):
                 unset_args[param_name] = param.default
         return unset_args
 
-    def _get_unset_object_args(self, sig: inspect.Signature, kwargs: dict):
+    def _get_unset_object_args(self,
+                               sig: inspect.Signature,
+                               kwargs_to_ignore: dict,
+                               skip_first_n: int = 0):
         assert self.is_class, "Cannot get unset object arguments when a function is passed in."
         unset_args = ArgsDict()
-        for arg_name, param in sig.parameters.items():
-            if (arg_name not in kwargs and param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
+        for argID, (arg_name, param) in enumerate(sig.parameters.items()):
+            if argID < skip_first_n:
+                continue
+            if (arg_name not in kwargs_to_ignore and param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD):
                 unset_args[arg_name] = param.default
         return unset_args
 

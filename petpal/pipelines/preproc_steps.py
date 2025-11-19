@@ -442,37 +442,34 @@ class ImageToImageStepV2(BaseProcessingStep):
                  callable_target: Callable | type,
                  input_image_path: str,
                  output_image_path: str,
+                 *args,
                  init_kwargs: dict | None = None,
                  call_kwargs: dict | None = None,
-                 *args,
                  **kwargs):
-        self.input_image_path = input_image_path
-        self.output_image_path = output_image_path
-        tmp_init_kwargs = copy.deepcopy(init_kwargs) or {}
-        tmp_call_kwargs = copy.deepcopy(call_kwargs) or {}
-        if inspect.isclass(callable_target):
-            tmp_args = ()
-            tmp_kwargs = {}
-        else:
-            tmp_args = (input_image_path, output_image_path, *args)
-            tmp_kwargs = copy.deepcopy(kwargs) or {}
+        BaseProcessingStep.__init__(self, name, callable_target,
+                                    *(input_image_path, output_image_path, *args),
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    **kwargs)
 
-        BaseProcessingStep.__init__(self,
-                                    name,
-                                    callable_target,
-                                    *tmp_args,
-                                    init_kwargs=tmp_init_kwargs,
-                                    call_kwargs=tmp_call_kwargs,
-                                    **tmp_kwargs)
-        if not self.is_class:
-            self.args = self.args[2:]
+    @property
+    def input_image_path(self):
+        return copy.deepcopy(self.args[0])
+
+    @input_image_path.setter
+    def input_image_path(self, input_image_path: str):
+        self.args[0] = copy.deepcopy(input_image_path)
+
+    @property
+    def output_image_path(self):
+        return copy.deepcopy(self.args[1])
+
+    @output_image_path.setter
+    def output_image_path(self, output_image_path: str):
+        self.args[1] = copy.deepcopy(output_image_path)
 
     def execute(self, copy_meta_file: bool = True) -> None:
-        if self.is_class:
-            obj = self.callable_target(self.input_image_path, self.output_image_path, **self.init_kwargs)
-            obj(**self.call_kwargs)
-        else:
-            self.callable_target(self.input_image_path, self.output_image_path, *self.args, **self.kwargs)
+        super().execute()
         if copy_meta_file:
             print("(Info): Copying meta data file for step.")
             safe_copy_meta(input_image_path=self.input_image_path, out_image_path=self.output_image_path)
