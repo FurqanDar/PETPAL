@@ -197,52 +197,74 @@ class BaseProcessingStep(StepsAPI):
             raise RuntimeError(f"Step '{self.name}' (Target: {target_name}) cannot run:\n" + "\n".join(errors))
 
     def __str__(self):
-        if self.is_class:
-            default_init = self._get_default_args(sig=self.init_sig,
-                                                  set_kwargs=self.init_kwargs,
-                                                  args_satisfied_by_positionals=len(self.args),
-                                                  skip_self=True)
-            default_call = self._get_default_args(sig=self.call_sig,
-                                                  set_kwargs=self.call_kwargs,
-                                                  args_satisfied_by_positionals=len(self.args),
-                                                  skip_self=True)
+        lines = []
+        lines.extend(self._str_header())
+        lines.extend(self._str_extra_info())  # <--- The main hook for subclasses
+        lines.extend(self._str_args_info())
+        lines.extend(self._str_defaults_info())
+        lines.extend(self._str_footer())
 
-            default_init = ArgsDict.from_default_params(default_init)
-            default_call = ArgsDict.from_default_params(default_call)
-            info_str = [
-                f'({type(self).__name__} Info):',
-                f'Step Name: {self.name}',
-                f'Class Name: {self.callable_target.__name__}',
-                'Initialization Arguments:',
-                f'{self.init_kwargs}',
-                'Default Initialization Arguments:',
-                f'{default_init if default_init else "N/A"}',
-                'Call Arguments:',
-                f'{self.call_kwargs if self.call_kwargs else "N/A"}',
-                'Default Call Arguments:',
-                f'{default_call if default_call else "N/A"}'
-                ]
+        return "\n".join(filter(None, lines))
+
+    def _str_header(self) -> list[str]:
+        return [
+            f"({type(self).__name__} Info):",
+            f"Step Name: {self.name}"
+            ]
+
+    def _str_extra_info(self) -> list[str]:
+        return []
+
+    def _str_args_info(self) -> list[str]:
+        info = []
+        target_name = self.callable_target.__name__
+
+        if self.is_class:
+            info.append(f"Target Class: {target_name}")
+            info.append(f"Initialization Arguments:\n{self.init_kwargs if self.init_kwargs else 'N/A'}")
+            info.append(f"Call Arguments:\n{self.call_kwargs if self.call_kwargs else 'N/A'}")
         else:
-            func_params = list(inspect.signature(self.callable_target).parameters)
-            default_args = self._get_default_args(sig=self.func_sig,
-                                                  set_kwargs=self.kwargs,
-                                                  args_satisfied_by_positionals=len(self.args),
-                                                  skip_self=False)
-            reconstructed_args = ArgsDict()
-            for arg_name, arg_val in zip(func_params, self.args):
-                reconstructed_args[arg_name] = arg_val
-            info_str = [
-                f'({type(self).__name__} Info):',
-                f'Step Name: {self.name}',
-                f'Function Name: {self.callable_target.__name__}',
-                'Positional Arguments:',
-                f'{reconstructed_args}' if reconstructed_args else "N/A",
-                'Keyword Arguments:',
-                f'{self.kwargs if self.kwargs else "N/A"}',
-                'Default Arguments:',
-                f'{ArgsDict.from_default_params(default_args)}' if default_args else "N/A",
-                ]
-        return '\n'.join(info_str)
+            info.append(f"Target Function: {target_name}")
+
+            func_params = list(self.func_sig.parameters)
+            reconstructed = ArgsDict()
+            for i, val in enumerate(self.args):
+                name = func_params[i] if i < len(func_params) else f"arg_{i}"
+                reconstructed[name] = val
+            if reconstructed:
+                info.append(f"Positional Arguments:\n{reconstructed}")
+
+            info.append(f"Keyword Arguments:\n{self.kwargs}")
+
+        return info
+
+    def _str_defaults_info(self) -> list[str]:
+        info = []
+
+        if self.is_class:
+            def_init = self._get_default_args(sig=self.init_sig,
+                                              set_kwargs=self.init_kwargs,
+                                              args_satisfied_by_positionals=len(self.args),
+                                              skip_self=True)
+            def_call = self._get_default_args(sig=self.call_sig,
+                                              set_kwargs=self.call_kwargs,
+                                              args_satisfied_by_positionals=0,
+                                              skip_self=True)
+            if def_init:
+                info.append(f"Default Init Args:\n{ArgsDict.from_default_params(def_init)}")
+            if def_call:
+                info.append(f"Default Call Args:\n{ArgsDict.from_default_params(def_call)}")
+        else:
+            def_func = self._get_default_args(sig=self.func_sig,
+                                              set_kwargs=self.kwargs,
+                                              args_satisfied_by_positionals=len(self.args),
+                                              skip_self=False)
+            if def_func:
+                info.append(f"Default Arguments:\n{ArgsDict.from_default_params(def_func)}")
+        return info
+
+    def _str_footer(self) -> list[str]:
+        return []
 
     def __repr__(self):
         cls_name = type(self).__name__
