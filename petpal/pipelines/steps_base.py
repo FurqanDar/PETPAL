@@ -135,7 +135,10 @@ class BaseProcessingStep(StepsAPI):
             self.init_sig = inspect.signature(callable_target.__init__)
             self.call_sig = inspect.signature(callable_target.__call__)
         else:
-            self.func_sig = inspect.signature(callable_target)
+            try:
+                self.func_sig = inspect.signature(callable_target, follow_wrapped=False)
+            except ValueError:
+                self.func_sig = inspect.signature(callable_target)
         self.validate()
 
     def validate(self):
@@ -185,7 +188,7 @@ class BaseProcessingStep(StepsAPI):
                     sig=target_sig,
                     set_kwargs=target_kwargs,
                     args_satisfied_by_positionals=len(self.args),
-                    skip_self=False
+                    skip_self=True
                     )
             missing_func = ArgsDict.from_default_params(missing_func)
 
@@ -207,34 +210,39 @@ class BaseProcessingStep(StepsAPI):
         return "\n".join(filter(None, lines))
 
     def _str_header(self) -> list[str]:
-        return [
+        info = [
             f"({type(self).__name__} Info):",
             f"Step Name: {self.name}"
             ]
+        target_name = self.callable_target.__name__
+        if self.is_class:
+            info.append(f"Target Class: {target_name}")
+        else:
+            info.append(f"Target Function: {target_name}")
+        return info
 
     def _str_extra_info(self) -> list[str]:
         return []
 
     def _str_args_info(self) -> list[str]:
         info = []
-        target_name = self.callable_target.__name__
 
         if self.is_class:
-            info.append(f"Target Class: {target_name}")
             info.append(f"Initialization Arguments:\n{self.init_kwargs if self.init_kwargs else 'N/A'}")
             info.append(f"Call Arguments:\n{self.call_kwargs if self.call_kwargs else 'N/A'}")
         else:
-            info.append(f"Target Function: {target_name}")
-
+            claimed_idx = self._get_claimed_positional_indices()
             func_params = list(self.func_sig.parameters)
             reconstructed = ArgsDict()
+            info.append("Positional Arguments")
             for i, val in enumerate(self.args):
+                if i in claimed_idx:
+                    continue
                 name = func_params[i] if i < len(func_params) else f"arg_{i}"
                 reconstructed[name] = val
-            if reconstructed:
-                info.append(f"Positional Arguments:\n{reconstructed}")
-
-            info.append(f"Keyword Arguments:\n{self.kwargs}")
+            info.append(f"{reconstructed}" if reconstructed else "N/A")
+            info.append(f"Keyword Arguments")
+            info.append(f"{self.kwargs}" if self.kwargs else "N/A")
 
         return info
 
@@ -373,6 +381,14 @@ class BaseProcessingStep(StepsAPI):
                                                        args_satisfied_by_positionals=args_satisfied_by_positionals,
                                                        skip_self=skip_self)
         return [arg for arg in missing_args if arg.default is not inspect.Parameter.empty]
+
+    def _get_claimed_positional_indices(self) -> set[int]:
+        claimed = set()
+        for cls in inspect.getmro(type(self)):
+            for attr_name, attr_value in cls.__dict__.items():
+                if isinstance(attr_value, PositionalBinder):
+                    claimed.add(attr_value.index)
+        return claimed
 
 
 class PositionalBinder:
