@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable
+from typing import Callable, Any
 import types
 
 class ArgsDict(dict):
@@ -371,6 +371,24 @@ class BaseProcessingStep(StepsAPI):
                                                        args_satisfied_by_positionals=args_satisfied_by_positionals,
                                                        skip_self=skip_self)
         return [arg for arg in missing_args if arg.default is not inspect.Parameter.empty]
+
+
+class PositionalBinder:
+    def __init__(self, index: int):
+        self.index = index
+
+    def __get__(self, instance, owner):
+        if instance is None: return self
+        try:
+            return instance.args[self.index]
+        except IndexError:
+            return None
+
+    def __set__(self, instance, value):
+        while len(instance.args) <= self.index:
+            instance.args.append(None)
+        instance.args[self.index] = value
+
 
 
 class FunctionBasedStep(StepsAPI):
