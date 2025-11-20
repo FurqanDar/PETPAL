@@ -759,6 +759,25 @@ class ImageToImageStepV2(BaseProcessingStep):
                                     call_kwargs=call_kwargs,
                                     **kwargs)
 
+    def set_input_as_output_from(self, *sending_steps) -> None:
+        assert len(sending_steps) == 1, "ImageToImageStep must have 1 sending step."
+        if isinstance(sending_steps[0], ImageToImageStep):
+            self.input_image_path = sending_steps[0].output_image_path
+        else:
+            super().set_input_as_output_from(sending_steps[0])
+
+    def infer_outputs_from_inputs(self,
+                                  out_dir: str,
+                                  der_type: str,
+                                  suffix: str = None,
+                                  ext: str = None,
+                                  **extra_desc):
+        sub_id, ses_id = parse_path_to_get_subject_and_session_id(self.input_image_path)
+        step_name_in_camel_case = snake_to_camel_case(self.name)
+        filepath = gen_bids_like_filepath(sub_id=sub_id, ses_id=ses_id, suffix=suffix, bids_dir=out_dir,
+                                          modality=der_type, ext=ext, desc=step_name_in_camel_case, **extra_desc)
+        self.output_image_path = filepath
+
     def _str_extra_info(self) -> list[str]:
         return [
             "Input & Output Paths:",

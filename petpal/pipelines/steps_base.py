@@ -339,10 +339,11 @@ class BaseProcessingStep(StepsAPI):
     def can_potentially_run(self):
         if self.is_class:
             return (self._all_non_empty_strings(self.init_kwargs.values()) and
+                    self._all_non_empty_strings(self.args) and
                     self._all_non_empty_strings(self.call_kwargs.values()))
         else:
-            return (self._all_non_empty_strings(self.init_kwargs.values()) and
-                    self._all_non_empty_strings(self.call_kwargs.values()))
+            return (self._all_non_empty_strings(self.args) and
+                    self._all_non_empty_strings(self.kwargs.values()))
 
     def _all_non_empty_strings(self, values):
         return all(val != '' for val in values)
