@@ -263,9 +263,17 @@ class BaseProcessingStep(StepsAPI):
             if def_call:
                 info.append(f"Default Call Args:\n{ArgsDict.from_default_params(def_call)}")
         else:
-            def_func = self._get_default_args(sig=self.func_sig,
+            target = self.callable_target
+            if hasattr(target, '__wrapped__'):
+                sig_to_check = inspect.signature(target.__wrapped__)
+                positional_count = 0
+            else:
+                sig_to_check = self.func_sig
+                claimed_idx = self._get_claimed_positional_indices()
+                positional_count = max(0, len(self.args) - len(claimed_idx))
+            def_func = self._get_default_args(sig=sig_to_check,
                                               set_kwargs=self.kwargs,
-                                              args_satisfied_by_positionals=len(self.args),
+                                              args_satisfied_by_positionals=positional_count,
                                               skip_self=False)
             if def_func:
                 info.append(f"Default Arguments:\n{ArgsDict.from_default_params(def_func)}")
