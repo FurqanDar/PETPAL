@@ -436,7 +436,7 @@ class ResampleBloodTACStep(FunctionBasedStep):
         return cls(input_raw_blood_tac_path='', input_image_path='', out_tac_path='', lin_fit_thresh_in_mins=30.0)
 
 
-class ImageToImageStep(FunctionBasedStep):
+class ImageToImageStepOld(FunctionBasedStep):
     """
     A step in a processing pipeline for processing and transforming image files. This class handles input and output
     image paths, executes image transformation functions, and provides methods for setting inputs from other steps
@@ -738,7 +738,7 @@ class ImageToImageStep(FunctionBasedStep):
             return cls(**defaults)
 
 
-class ImageToImageStepV2(BaseProcessingStep):
+class ImageToImageStep(BaseProcessingStep):
     input_image_path = PositionalBinder(0)
     output_image_path = PositionalBinder(1)
 
@@ -768,9 +768,9 @@ class ImageToImageStepV2(BaseProcessingStep):
 
     def infer_outputs_from_inputs(self,
                                   out_dir: str,
-                                  der_type: str,
-                                  suffix: str = None,
-                                  ext: str = None,
+                                  der_type='preproc',
+                                  suffix: str = 'pet',
+                                  ext: str = '.nii.gz',
                                   **extra_desc):
         sub_id, ses_id = parse_path_to_get_subject_and_session_id(self.input_image_path)
         step_name_in_camel_case = snake_to_camel_case(self.name)
