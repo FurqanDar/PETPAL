@@ -502,11 +502,11 @@ class ImageToImageStep(FunctionBasedStep):
             where ``input_image`` and ``output_image`` are abritrary names.
             
         """
-        print(f"(Info): Executing {self.name}")
+        # print(f"(Info): Executing {self.name}")
         self.function(self.input_image_path, self.output_image_path, *self.args, **self.kwargs)
         if copy_meta_file:
             safe_copy_meta(input_image_path=self.input_image_path, out_image_path=self.output_image_path)
-        print(f"(Info): Finished {self.name}")
+        # print(f"(Info): Finished {self.name}")
     
     def __str__(self):
         """
@@ -769,7 +769,7 @@ class ImageToImageStepV2(BaseProcessingStep):
     def execute(self, copy_metadata: bool = True):
         super().execute()
         if copy_metadata:
-            print("(Info): Copying image metadata...")
+            print("(Info): Copying image metadata ...")
             try:
                 safe_copy_meta(input_image_path=self.input_image_path,
                                out_image_path=self.output_image_path)
@@ -778,9 +778,32 @@ class ImageToImageStepV2(BaseProcessingStep):
             else:
                 print("(Info): Successfully copied image metadata")
 
+    @classmethod
+    def default_rescale_image(cls, name: str = 'rescale_image', **overrides):
+        defaults = dict(name=name,
+                        callable_target=ANTsImageToANTsImage(rescale_image),
+                        input_image_path='',
+                        output_image_path='',
+                        rescale_constant=37000.0, op='/')
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
 
-
-
+    @classmethod
+    def default_threshold_cropping(cls, name: str = 'thresh_crop', **overrides):
+        defaults = dict(name=name,
+                        callable_target=SimpleAutoImageCropper,
+                        input_image_path='',
+                        output_image_path='', )
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
 
 class ImagePairToArrayStep(FunctionBasedStep):
     """

@@ -105,7 +105,7 @@ class StepsAPI:
 
     def __call__(self, *args, **kwargs):
         if not self.skip_step:
-            print(f"(Info): Executing {self.name}")
+            print(f"(Info): Executing {self.name} ...")
             self.execute(*args, **kwargs)
             print(f"(Info): Finished {self.name}")
         else:
@@ -328,7 +328,11 @@ class BaseProcessingStep(StepsAPI):
     def execute(self):
         if self.is_class:
             obj_instance = self.callable_target(*self.args, **self.init_kwargs)
-            obj_instance(**self.call_kwargs)
+            if callable(obj_instance):
+                obj_instance(**self.call_kwargs)
+            else:
+                if self.call_kwargs:
+                    print("(Warning): Passed object is not callable. 'call_kwargs' have no effect.")
         else:
             self.callable_target(*self.args, **self.kwargs)
 
