@@ -129,7 +129,7 @@ class BaseProcessingStep(StepsAPI):
 
         self.init_kwargs = ArgsDict(init_kwargs or {})
         self.call_kwargs = ArgsDict(call_kwargs or {})
-        self.args = args or ()
+        self.args = list(args) or []
         self.kwargs = ArgsDict(kwargs or {})
         if self.is_class:
             self.init_sig = inspect.signature(callable_target.__init__)
@@ -389,6 +389,34 @@ class PositionalBinder:
             instance.args.append(None)
         instance.args[self.index] = value
 
+
+class ImageToImageStepV2(BaseProcessingStep):
+    input_image_path = PositionalBinder(0)
+    output_image_path = PositionalBinder(1)
+
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable,
+                 input_image_path: str,
+                 output_image_path: str,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs):
+        BaseProcessingStep.__init__(self,
+                                    name,
+                                    callable_target,
+                                    *(input_image_path, output_image_path, *args),
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    **kwargs)
+
+    def _str_extra_info(self) -> list[str]:
+        return [
+            "Input & Output Paths:",
+            f"\tInput:  {repr(self.input_image_path)}",
+            f"\tOutput: {repr(self.output_image_path)}"
+            ]
 
 
 class FunctionBasedStep(StepsAPI):
