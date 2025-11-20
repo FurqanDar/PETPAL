@@ -824,6 +824,61 @@ class ImageToImageStepV2(BaseProcessingStep):
             warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
             return cls(**defaults)
 
+    @classmethod
+    def default_moco_frames_above_mean(cls, name: str = 'moco_frames_above_mean', verbose=False, **overrides):
+        defaults = dict(name=name,
+                        callable_target=motion_corr_frames_above_mean_value,
+                        input_image_path='',
+                        output_image_path='',
+                        motion_target_option='mean_image',
+                        verbose=verbose,
+                        half_life=None, )
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_windowed_moco(cls, name: str = 'windowed_moco', verbose=False, **overrides):
+        defaults = dict(name=name,
+                        callable_target=windowed_motion_corr_to_target,
+                        input_image_path='',
+                        output_image_path='',
+                        motion_target_option='weighted_series_sum',
+                        w_size=60.0,
+                        verbose=verbose)
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_register_pet_to_t1(cls,
+                                   name: str = 'register_pet_to_t1',
+                                   reference_image_path='',
+                                   half_life: float = None,
+                                   verbose=False,
+                                   **overrides):
+        defaults = dict(name=name,
+                        callable_target=register_pet,
+                        input_image_path='',
+                        output_image_path='',
+                        reference_image_path=reference_image_path,
+                        motion_target_option='weighted_series_sum',
+                        verbose=verbose,
+                        half_life=half_life)
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+
 class ImagePairToArrayStep(FunctionBasedStep):
     """
     A step in a processing pipeline for transforming two input image files into an output array.
