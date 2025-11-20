@@ -681,8 +681,8 @@ class SimpleAutoImageCropper(object):
                                     out_image_path=self.out_image_path)
 
         if verbose:
-            print(f"(info): Input image has shape:  {self.input_img_obj.shape}")
-            print(f"(info): Output image has shape: {self.crop_img_obj.shape}")
+            print(f"(Info): Input image has shape:  {self.input_img_obj.shape}")
+            print(f"(Info): Output image has shape: {self.crop_img_obj.shape}")
 
 
     @staticmethod
