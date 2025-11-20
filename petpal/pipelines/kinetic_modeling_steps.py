@@ -11,6 +11,67 @@ from .preproc_steps import (TACsFromSegmentationStep,
 from .pca_guided_idif_steps import PCAGuidedIDIFMixin
 from ..utils.bids_utils import parse_path_to_get_subject_and_session_id, gen_bids_like_dir_path
 
+
+class KwargBinder():
+    def __init__(self, target: str = 'auto', name: str = None, default = None):
+        self.target = target
+        self.key = name
+        self.default = default
+
+    def __set_name__(self, owner: BaseProcessingStep, name):
+        if self.key is None:
+            self.key = name
+
+    def _get_target_dict(self, instance: BaseProcessingStep):
+        if instance.is_function:
+            return instance.kwargs
+        if self.target == 'call':
+            return instance.call_kwargs
+        return instance.init_kwargs
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        stored_dict = self._get_target_dict(instance)
+        return stored_dict.get(self.key, self.default)
+
+    def __set__(self, instance, value):
+        stored_dict = self._get_target_dict(instance)
+        stored_dict[self.key] = value
+
+
+class TACAnalysisStepMixinV2(StepsAPI):
+    roi_tacs_dir = KwargBinder(target='init')
+    output_directory = KwargBinder(target='init')
+    output_prefix = KwargBinder(target='init', name='output_filename_prefix')
+    input_tac_path = KwargBinder(target='init')
+    reference_tac_path = KwargBinder(target='init', name='ref_tac_path')
+
+    def infer_prefix_from_input_tac_path(self):
+        sub_id, ses_id = parse_path_to_get_subject_and_session_id(self.input_tac_path)
+        self.output_prefix = f'sub-{sub_id}_ses-{ses_id}'
+
+    def infer_output_directory_from_input_tac_path(self, out_dir: str, der_type: str = 'km'):
+        sub_id, ses_id = parse_path_to_get_subject_and_session_id(self.input_tac_path)
+        outpath = gen_bids_like_dir_path(sub_id=sub_id, ses_id=ses_id, modality=der_type, sup_dir=out_dir)
+        self.output_directory = outpath
+
+    def infer_outputs_from_inputs(self, out_dir: str, der_type, suffix=None, ext=None, **extra_desc):
+        self.infer_prefix_from_input_tac_path()
+        self.infer_output_directory_from_input_tac_path(out_dir=out_dir, der_type=der_type)
+
+    def set_input_as_output_from(self, *sending_steps) -> None:
+        for sending_step in sending_steps:
+            if isinstance(sending_step, TACsFromSegmentationStep):
+                self.roi_tacs_dir = sending_step.out_tacs_dir
+            elif isinstance(sending_step, ResampleBloodTACStep):
+                self.input_tac_path = sending_step.resampled_tac_path
+            elif isinstance(sending_step, PCAGuidedIDIFMixin):
+                self.input_tac_path = sending_step.output_tac_path
+            else:
+                super().set_input_as_output_from(sending_step)
+
+
 class TACAnalysisStepMixin(StepsAPI):
     """
     A mixin class for TAC analysis steps.
