@@ -766,6 +766,21 @@ class ImageToImageStepV2(BaseProcessingStep):
             f"\tOutput: {repr(self.output_image_path)}"
             ]
 
+    def execute(self, copy_metadata: bool = True):
+        super().execute()
+        if copy_metadata:
+            print("(Info): Copying image metadata...")
+            try:
+                safe_copy_meta(input_image_path=self.input_image_path,
+                               out_image_path=self.output_image_path)
+            except Exception as err:
+                print(f"(Error): Failed to copy image metadata: {err}")
+            else:
+                print("(Info): Successfully copied image metadata")
+
+
+
+
 
 class ImagePairToArrayStep(FunctionBasedStep):
     """
