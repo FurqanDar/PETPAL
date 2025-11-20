@@ -1009,4 +1009,46 @@ class ImagePairToArrayStepV2(BaseProcessingStep):
     second_image_path = PositionalBinder(1)
     output_array_path = PositionalBinder(2)
 
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable,
+                 input_image_path: str,
+                 second_image_path: str,
+                 output_array_path: str,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs):
+        BaseProcessingStep.__init__(self,
+                                    name,
+                                    callable_target,
+                                    *(input_image_path, second_image_path, output_array_path, *args,),
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    **kwargs
+                                    )
+
+    def set_input_as_output_from(self, *sending_steps) -> None:
+        assert len(sending_steps) == 2, "ImagePairToArrayStep must have 2 sending ImageToImageStep steps."
+        if isinstance(sending_steps[0], ImageToImageStep):
+            self.input_image_path = sending_steps[0].output_image_path
+        else:
+            super().set_input_as_output_from(sending_steps[0])
+        if isinstance(sending_steps[1], ImageToImageStep):
+            self.second_image_path = sending_steps[1].output_image_path
+        else:
+            super().set_input_as_output_from(sending_steps[1])
+
+    def infer_outputs_from_inputs(self,
+                                  out_dir: str,
+                                  der_type: str = 'tacs',
+                                  suffix: str = 'tac',
+                                  ext: str = '.tsv',
+                                  **extra_desc):
+        sub_id, ses_id = parse_path_to_get_subject_and_session_id(self.input_image_path)
+        step_name_in_camel_case = snake_to_camel_case(self.name)
+        filepath = gen_bids_like_filepath(sub_id=sub_id, ses_id=ses_id, suffix=suffix, bids_dir=out_dir,
+                                          modality=der_type, ext=ext, desc=step_name_in_camel_case, **extra_desc)
+        self.output_array_path = filepath
+
 PreprocStepType = Union[TACsFromSegmentationStep, ResampleBloodTACStep, ImageToImageStep, ImagePairToArrayStep]
