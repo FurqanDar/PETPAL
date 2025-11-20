@@ -271,10 +271,12 @@ class BaseProcessingStep(StepsAPI):
         target_name = f'{self.callable_target.__module__}.{self.callable_target.__name__}'
 
         info_str = [f'{cls_name}(']
-        info_str.append(f'\tname={repr(self.name)},')
-        info_str.append(f'\tcallable_target={target_name},')
+        info_str.append(f'\t{repr(self.name)},')
+        info_str.append(f'\t{target_name},')
 
         if self.is_class:
+            if self.args:
+                info_str.append(f'*{repr(tuple(self.args))},')
             if self.init_kwargs:
                 info_str.append('init_kwargs={')
                 for k, v in self.init_kwargs.items():
@@ -287,9 +289,9 @@ class BaseProcessingStep(StepsAPI):
                 info_str.append('},')
         else:
             if self.args:
-                info_str.append(f'*{str(self.args)},')
+                info_str.append(f'*{repr(tuple(self.args))},')
             if self.kwargs:
-                info_str.append(f'{str(self.kwargs)},')
+                info_str.append(f'{repr(self.kwargs)},')
 
         info_str.append(')')
         return '\n'.join(info_str)
