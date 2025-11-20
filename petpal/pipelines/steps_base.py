@@ -330,9 +330,14 @@ class BaseProcessingStep(StepsAPI):
             obj_instance = self.callable_target(*self.args, **self.init_kwargs)
             if callable(obj_instance):
                 obj_instance(**self.call_kwargs)
+            elif self.call_kwargs:
+                raise RuntimeError(
+                        f"Step '{self.name}' provided 'call_kwargs' {list(self.call_kwargs.keys())}, "
+                        f"but the resulting object of type '{type(obj_instance).__name__}' is not callable. "
+                        f"Has the __call__ method been implemented for this class?"
+                        )
             else:
-                if self.call_kwargs:
-                    print("(Warning): Passed object is not callable. 'call_kwargs' have no effect.")
+                print("(Warning): Passed object is not callable. 'call_kwargs' have no effect.")
         else:
             self.callable_target(*self.args, **self.kwargs)
 

@@ -1004,4 +1004,9 @@ class ImagePairToArrayStep(FunctionBasedStep):
         self.output_array_path = filepath
 
 
+class ImagePairToArrayStepV2(BaseProcessingStep):
+    input_image_path = PositionalBinder(0)
+    second_image_path = PositionalBinder(1)
+    output_array_path = PositionalBinder(2)
+
 PreprocStepType = Union[TACsFromSegmentationStep, ResampleBloodTACStep, ImageToImageStep, ImagePairToArrayStep]
