@@ -1,4 +1,5 @@
 from typing import Union
+import warnings
 from .steps_base import *
 from ..kinetic_modeling import parametric_images
 from ..kinetic_modeling import tac_fitting
@@ -330,7 +331,121 @@ class TACAnalysisStepMixin(StepsAPI):
                 super().set_input_as_output_from(sending_step)
 
 
-class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
+class GraphicalAnalysisStep(BaseProcessingStep, TACAnalysisStepMixinV2):
+    method = KwargBinder(target='init')
+    fit_threshold = KwargBinder(target='init', name='fit_thresh_in_mins')
+
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable,
+                 input_tac_path: str,
+                 roi_tacs_dir: str,
+                 output_directory: str,
+                 output_prefix: str,
+                 method: str,
+                 fit_threshold: float,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs) -> None:
+        BaseProcessingStep.__init__(self,
+                                    name,
+                                    callable_target,
+                                    *args,
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    lazy_validation=True,
+                                    **kwargs)
+        self.input_tac_path = input_tac_path
+        self.roi_tacs_dir = roi_tacs_dir
+        self.output_directory = output_directory
+        self.output_prefix = output_prefix
+        self.method = method
+        self.fit_threshold = fit_threshold
+        self.validate()
+
+    @classmethod
+    def default_patlak(cls, name: str = 'roi_patlak_fit', **overrides):
+        defaults = dict(name=name,
+                        callable_target=pet_grph.MultiTACGraphicalAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        output_directory='',
+                        output_prefix='',
+                        method='patlak',
+                        fit_threshold=30.0,
+                        init_kwargs=None,
+                        call_kwargs=None,)
+
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_logan(cls, name: str = 'roi_logan_fit', **overrides):
+        defaults = dict(name=name,
+                        callable_target=pet_grph.MultiTACGraphicalAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        output_directory='',
+                        output_prefix='',
+                        method='logan',
+                        fit_threshold=30.0,
+                        init_kwargs=None,
+                        call_kwargs=None, )
+
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_alt_logan(cls, name: str = 'roi_alt-logan_fit', **overrides):
+        defaults = dict(name=name,
+                        callable_target=pet_grph.MultiTACGraphicalAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        output_directory='',
+                        output_prefix='',
+                        method='alt_logan',
+                        fit_threshold=30.0,
+                        init_kwargs=None,
+                        call_kwargs=None, )
+
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_logan_ref(cls, name: str = 'roi_logan_ref_fit', **overrides):
+        defaults = dict(name=name,
+                        callable_target=pet_grph.MultiTACGraphicalAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        output_directory='',
+                        output_prefix='',
+                        method='logan-ref',
+                        fit_threshold=30.0,
+                        init_kwargs=None,
+                        call_kwargs=None, )
+
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+
+class GraphicalAnalysisStepOld(ObjectBasedStep, TACAnalysisStepMixin):
     """
     A step for performing graphical analysis on TACs using various methods. Uses
     :class:`MultiTACGraphicalAnalysis<petpal.kinetic_modeling.graphical_analysis.MultiTACGraphicalAnalysis>`.
@@ -430,7 +545,6 @@ class GraphicalAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
             GraphicalAnalysisStep: A new instance for Alt-Logan (New Plot) graphical analysis.
         """
         return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='alt_logan', )
-
 
     @classmethod
     def default_logan_ref(cls):

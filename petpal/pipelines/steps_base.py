@@ -119,6 +119,7 @@ class BaseProcessingStep(StepsAPI):
                  *args,
                  init_kwargs: dict = None,
                  call_kwargs: dict = None,
+                 lazy_validation: bool = False,
                  **kwargs):
         StepsAPI.__init__(self, skip_step=False, name=name)
         self.callable_target: Callable | type = callable_target
@@ -139,7 +140,9 @@ class BaseProcessingStep(StepsAPI):
                 self.func_sig = inspect.signature(callable_target, follow_wrapped=False)
             except ValueError:
                 self.func_sig = inspect.signature(callable_target)
-        self.validate()
+        if not lazy_validation:
+            self.validate()
+
 
     def validate(self):
         errors = []
@@ -333,11 +336,8 @@ class BaseProcessingStep(StepsAPI):
             elif self.call_kwargs:
                 raise RuntimeError(
                         f"Step '{self.name}' provided 'call_kwargs' {list(self.call_kwargs.keys())}, "
-                        f"but the resulting object of type '{type(obj_instance).__name__}' is not callable. "
-                        f"Has the __call__ method been implemented for this class?"
+                        f"but the resulting object of type '{type(obj_instance).__name__}' is not callable. Has the __call__ method been implemented for this class?"
                         )
-            else:
-                print("(Warning): Passed object is not callable. 'call_kwargs' have no effect.")
         else:
             self.callable_target(*self.args, **self.kwargs)
 
