@@ -738,7 +738,7 @@ class TCMFittingAnalysisStepOld(ObjectBasedStep, TACAnalysisStepMixin):
         return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='',
                    compartment_model='2tcm-k4zero', **kwargs)
 
-class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixin):
+class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixinV2):
     compartment_model = KwargBinder(target='init')
     scan_metadata_path = KwargBinder(target='init', name='scan_info_path')
 
@@ -791,19 +791,19 @@ class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixin):
             return cls(**defaults)
 
     @classmethod
-    def default_serial2tcm(cls, name='roi_serial-2tcm-frmavgd_fit', **overrides):
+    def default_serial2tcm(cls, name='roi_frmavgd-serial-2tcm_fit', **overrides):
         return cls._default_with_model(name=name, compartment_model='serial-2tcm', **overrides)
 
     @classmethod
-    def default_1tcm(cls, name='roi_1tcm-frmavgd_fit', **overrides):
+    def default_1tcm(cls, name='roi_frmavgd-1tcm_fit', **overrides):
         return cls._default_with_model(name=name, compartment_model='1tcm', **overrides)
 
     def set_input_as_output_from(self, *sending_steps) -> None:
         for step in sending_steps:
             if hasattr(step, 'input_image_path'):
                 self.scan_metadata_path = step.input_image_path
-            else:
-                super().set_input_as_output_from(step)
+                break
+        super().set_input_as_output_from(*sending_steps)
 
 class RTMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     """

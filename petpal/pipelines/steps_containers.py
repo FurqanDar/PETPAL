@@ -4,7 +4,11 @@ import networkx as nx
 from matplotlib import pyplot as plt
 from .steps_base import *
 from .preproc_steps import PreprocStepType, ImageToImageStep, TACsFromSegmentationStep, ResampleBloodTACStep
-from .kinetic_modeling_steps import KMStepType, GraphicalAnalysisStep, TCMFittingAnalysisStep, ParametricGraphicalAnalysisStep
+from .kinetic_modeling_steps import (KMStepType,
+                                     GraphicalAnalysisStep,
+                                     TCMFittingAnalysisStep,
+                                     ParametricGraphicalAnalysisStep,
+                                     FrameAvgdTCMFittingAnalysisStep)
 
 StepType = Union[BaseProcessingStep, FunctionBasedStep, ObjectBasedStep, PreprocStepType, KMStepType]
 
@@ -292,6 +296,13 @@ class StepsContainer:
         obj.add_step(TCMFittingAnalysisStep.default_serial2tcm())
         obj.add_step(TCMFittingAnalysisStep.default_irreversible_2tcm())
         return obj
+
+    @classmethod
+    def default_frame_avgd_tcm_analysis_steps(cls, name: str = 'km_frame_avg_tcm_analysis'):
+        obj = cls(name=name)
+        obj.add_step(FrameAvgdTCMFittingAnalysisStep.default_1tcm())
+        obj.add_step(FrameAvgdTCMFittingAnalysisStep.default_serial2tcm())
+        return obj
     
     @classmethod
     def default_kinetic_analysis_steps(cls, name: str = 'km'):
@@ -322,8 +333,9 @@ class StepsContainer:
         parametric_graphical_analysis_steps = cls.default_parametric_graphical_analysis_steps()
         graphical_analysis_steps = cls.default_graphical_analysis_steps()
         tcm_analysis_steps = cls.default_tcm_analysis_steps()
-        
-        obj = parametric_graphical_analysis_steps + graphical_analysis_steps + tcm_analysis_steps
+        frm_avgd_tcm_analysis_steps = cls.default_frame_avgd_tcm_analysis_steps()
+
+        obj = parametric_graphical_analysis_steps + graphical_analysis_steps + tcm_analysis_steps + frm_avgd_tcm_analysis_steps
         obj.name = name
         return obj
 
@@ -571,8 +583,6 @@ class StepsPipeline:
             if verbose:
                 print(f"Step {step_name} received inputs from:\n{input_step_names}")
 
-
-
     def update_dependencies(self, verbose=False):
         """
         Updates the dependencies for all steps in the pipeline.
@@ -748,9 +758,13 @@ class StepsPipeline:
         for method in ['patlak', 'logan', 'alt_logan']:
             obj.add_dependency(sending='register_pet_to_t1', receiving=f'parametric_{method}_fit')
             obj.add_dependency(sending='resample_PTAC_on_scanner', receiving=f'parametric_{method}_fit')
-        
-        for fit_model in ['1tcm', '2tcm-k4zero', 'serial-2tcm', 'patlak', 'logan', 'alt-logan']:
+
+        for fit_model in ['1tcm', '2tcm-k4zero', 'serial-2tcm', 'patlak', 'logan', 'alt-logan',
+                          'frmavgd-1tcm', 'frmavgd-serial-2tcm']:
             obj.add_dependency(sending='write_roi_tacs', receiving=f"roi_{fit_model}_fit")
             obj.add_dependency(sending='resample_PTAC_on_scanner', receiving=f"roi_{fit_model}_fit")
-        
+            # if 'frmavgd' in fit_model:
+            #     print("HELLO")
+            #     obj.add_dependency(sending='register_pet_to_t1', receiving=f"roi_{fit_model}_fit")
+
         return obj
