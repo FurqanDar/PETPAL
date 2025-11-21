@@ -343,7 +343,11 @@ class StepsPipeline:
     See Also:
         :class:`StepsContainer`
     """
-    def __init__(self, name: str, step_containers: list[StepsContainer]):
+    def __init__(self,
+                 name: str,
+                 step_containers: list[StepsContainer],
+                 dependencies: list[tuple[str, str]] = None,
+                 context_mappings: list[tuple[str, str, str]] = None):
         """
         Initializes the StepsPipeline with a name and an optional list of step containers.
 
