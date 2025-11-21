@@ -626,6 +626,7 @@ class TCMFittingAnalysisStepV2(BaseProcessingStep, TACAnalysisStepMixinV2):
 
 
 class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixin):
+    compartment_model = KwargBinder(target='init')
     scan_metadata_path = KwargBinder(target='init', name='scan_info_path')
 
     def __init__(self,
@@ -657,9 +658,39 @@ class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixin):
         self.scan_metadata_path = scan_metadata_path
         self.validate()
 
+
     @classmethod
-    def default_serial2tcm(cls, name='serial-2tcm-frmavgd', **kwargs):
-        return cls(input_tac_path='',)
+    def _default_with_model(cls, name: str, compartment_model: str, **overrides):
+        defaults = dict(name=name,
+                        callable_target=tac_fitting.FrameAveragedMultiTACTCMAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        scan_metadata_path='',
+                        output_directory='',
+                        output_prefix='',
+                        compartment_model=compartment_model,
+                        )
+        override_dict = defaults | overrides
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
+
+    @classmethod
+    def default_serial2tcm(cls, name='roi_serial-2tcm-frmavgd_fit', **overrides):
+        return cls._default_with_model(name=name, compartment_model='serial-2tcm', **overrides)
+
+    @classmethod
+    def default_1tcm(cls, name='roi_1tcm-frmavgd_fit', **overrides):
+        return cls._default_with_model(name=name, compartment_model='1tcm', **overrides)
+
+    def set_input_as_output_from(self, *sending_steps) -> None:
+        for step in sending_steps:
+            if hasattr(step, 'input_image_path'):
+                self.scan_metadata_path = step.input_image_path
+            else:
+                super().set_input_as_output_from(step)
 
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     """
