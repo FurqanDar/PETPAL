@@ -47,7 +47,7 @@ def main():
                                      epilog="Example: petpal-graph-analysis "
                                             "graphical-analysis "
                                             "--input-tac-path /path/to/input.tac "
-                                            "--pet4D-img-path /path/to/pet4D.img "
+                                            "--input-image-path /path/to/pet4D.img "
                                             "--output-directory /path/to/output "
                                             "--output-filename-prefix graph_ana "
                                             "--method-name patlak --threshold-in-mins 30.0 ")
