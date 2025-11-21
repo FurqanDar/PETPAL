@@ -560,7 +560,7 @@ class GraphicalAnalysisStepOld(ObjectBasedStep, TACAnalysisStepMixin):
         return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='logan_ref', )
 
 
-class TCMFittingAnalysisStepV2(BaseProcessingStep, TACAnalysisStepMixinV2):
+class TCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixinV2):
     compartment_model = KwargBinder(target='init')
 
     def __init__(self,
@@ -625,7 +625,7 @@ class TCMFittingAnalysisStepV2(BaseProcessingStep, TACAnalysisStepMixinV2):
         return cls._default_with_model(name=name, compartment_model='2tcm-k4zero', **overrides)
 
 
-class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
+class TCMFittingAnalysisStepOld(ObjectBasedStep, TACAnalysisStepMixin):
     """
     A step for fitting compartment models to TAC data using
     :class:`MultiTACTCMAnalysis<petpal.kinetic_modeling.tac_fitting.MultiTACTCMAnalysis>`.

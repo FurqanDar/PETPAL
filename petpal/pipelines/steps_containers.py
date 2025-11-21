@@ -6,7 +6,7 @@ from .steps_base import *
 from .preproc_steps import PreprocStepType, ImageToImageStep, TACsFromSegmentationStep, ResampleBloodTACStep
 from .kinetic_modeling_steps import KMStepType, GraphicalAnalysisStep, TCMFittingAnalysisStep, ParametricGraphicalAnalysisStep
 
-StepType = Union[FunctionBasedStep, ObjectBasedStep, PreprocStepType, KMStepType]
+StepType = Union[BaseProcessingStep, FunctionBasedStep, ObjectBasedStep, PreprocStepType, KMStepType]
 
 class StepsContainer:
     """
