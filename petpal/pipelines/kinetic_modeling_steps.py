@@ -591,32 +591,75 @@ class TCMFittingAnalysisStepV2(BaseProcessingStep, TACAnalysisStepMixinV2):
         self.validate()
 
     @classmethod
-    def default_1tcm(cls, **kwargs):
-        return cls(input_tac_path='',
-                   roi_tacs_dir='',
-                   output_directory='',
-                   output_prefix='',
-                   compartment_model='1tcm',
-                   **kwargs)
+    def _default_with_model(cls, name: str, compartment_model: str, **overrides):
+        defaults = dict(name=name,
+                        callable_target=tac_fitting.MultiTACTCMAnalysis,
+                        input_tac_path='',
+                        roi_tacs_dir='',
+                        output_directory='',
+                        output_prefix='',
+                        compartment_model=compartment_model,
+                        )
+        override_dict = defaults | overrides
+
+        try:
+            return cls(**override_dict)
+        except RuntimeError as err:
+            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
+            return cls(**defaults)
 
     @classmethod
-    def default_serial2tcm(cls, **kwargs):
-        return cls(input_tac_path='',
-                   roi_tacs_dir='',
-                   output_directory='',
-                   output_prefix='',
-                   compartment_model='serial-2tcm',
-                   **kwargs)
+    def default_1tcm(cls,
+                     name: str = 'roi_1tcm_fit',
+                     **overrides):
+        return cls._default_with_model(name=name, compartment_model='1tcm', **overrides)
 
     @classmethod
-    def default_irreversible_2tcm(cls, **kwargs):
-        return cls(input_tac_path='',
-                   roi_tacs_dir='',
-                   output_directory='',
-                   output_prefix='',
-                   compartment_model='2tcm-k4zero',
-                   **kwargs)
+    def default_serial2tcm(cls,
+                     name: str = 'roi_serial-2tcm_fit',
+                     **overrides):
+        return cls._default_with_model(name=name, compartment_model='serial-2tcm', **overrides)
 
+    @classmethod
+    def default_irreversible_2tcm(cls, name: str = 'roi_2tcm-k4zero_fit', **overrides):
+        return cls._default_with_model(name=name, compartment_model='2tcm-k4zero', **overrides)
+
+
+class FrameAvgdTCMFittingAnalysisStep(BaseProcessingStep, TACAnalysisStepMixin):
+    scan_metadata_path = KwargBinder(target='init', name='scan_info_path')
+
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable,
+                 input_tac_path: str,
+                 roi_tacs_dir: str,
+                 scan_metadata_path: str,
+                 output_directory: str,
+                 output_prefix: str,
+                 compartment_model : str,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs):
+        BaseProcessingStep.__init__(self,
+                                    name,
+                                    callable_target,
+                                    *args,
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    lazy_validation=True,
+                                    **kwargs)
+        self.input_tac_path = input_tac_path
+        self.roi_tacs_dir = roi_tacs_dir
+        self.output_directory = output_directory
+        self.output_prefix = output_prefix
+        self.compartment_model = compartment_model
+        self.scan_metadata_path = scan_metadata_path
+        self.validate()
+
+    @classmethod
+    def default_serial2tcm(cls, name='serial-2tcm-frmavgd', **kwargs):
+        return cls(input_tac_path='',)
 
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     """
