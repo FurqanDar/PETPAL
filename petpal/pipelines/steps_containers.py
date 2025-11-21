@@ -357,11 +357,27 @@ class StepsPipeline:
         """
         self.name: str = name
         self.step_containers: dict[str, StepsContainer] = {}
+        self._context_mappings: dict[tuple[str, str], str] = {}
         self.dependency_graph = nx.DiGraph()
         
         for container in step_containers:
             self.add_container(container)
-    
+
+        if dependencies:
+            for sender, receiver in dependencies:
+                self.add_dependency(sender, receiver)
+
+        if context_mappings:
+            for step, step_arg, context_attr in context_mappings:
+                self.map_context_input(step, step_arg, context_attr)
+
+    def map_context_input(self, step_name: str, step_arg: str, context_attr: str):
+        if step_name not in self.dependency_graph:
+            raise KeyError(f"Cannot map context to unknown step '{step_name}'")
+
+        self._context_mappings[(step_name, step_arg)] = context_attr
+
+
     def __repr__(self):
         """
         Provides an unambiguous string representation of the TACsFromSegmentationStep instance.
