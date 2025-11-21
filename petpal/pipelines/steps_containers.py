@@ -303,7 +303,7 @@ class StepsContainer:
         obj.add_step(FrameAvgdTCMFittingAnalysisStep.default_1tcm())
         obj.add_step(FrameAvgdTCMFittingAnalysisStep.default_serial2tcm())
         return obj
-    
+
     @classmethod
     def default_kinetic_analysis_steps(cls, name: str = 'km'):
         """
@@ -369,7 +369,7 @@ class StepsPipeline:
         
         for container in step_containers:
             self.add_container(container)
-    
+
     def __repr__(self):
         """
         Provides an unambiguous string representation of the TACsFromSegmentationStep instance.
@@ -763,8 +763,5 @@ class StepsPipeline:
                           'frmavgd-1tcm', 'frmavgd-serial-2tcm']:
             obj.add_dependency(sending='write_roi_tacs', receiving=f"roi_{fit_model}_fit")
             obj.add_dependency(sending='resample_PTAC_on_scanner', receiving=f"roi_{fit_model}_fit")
-            # if 'frmavgd' in fit_model:
-            #     print("HELLO")
-            #     obj.add_dependency(sending='register_pet_to_t1', receiving=f"roi_{fit_model}_fit")
-
+        
         return obj
