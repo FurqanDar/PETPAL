@@ -560,6 +560,64 @@ class GraphicalAnalysisStepOld(ObjectBasedStep, TACAnalysisStepMixin):
         return cls(input_tac_path='', roi_tacs_dir='', output_directory='', output_prefix='', method='logan_ref', )
 
 
+class TCMFittingAnalysisStepV2(BaseProcessingStep, TACAnalysisStepMixinV2):
+    compartment_model = KwargBinder(target='init')
+
+    def __init__(self,
+                 name: str,
+                 callable_target: Callable,
+                 input_tac_path: str,
+                 roi_tacs_dir: str,
+                 output_directory: str,
+                 output_prefix: str,
+                 compartment_model : str,
+                 *args,
+                 init_kwargs: dict = None,
+                 call_kwargs: dict = None,
+                 **kwargs) -> None:
+        BaseProcessingStep.__init__(self,
+                                    name,
+                                    callable_target,
+                                    *args,
+                                    init_kwargs=init_kwargs,
+                                    call_kwargs=call_kwargs,
+                                    lazy_validation=True,
+                                    **kwargs)
+        self.input_tac_path = input_tac_path
+        self.roi_tacs_dir = roi_tacs_dir
+        self.output_directory = output_directory
+        self.output_prefix = output_prefix
+        self.compartment_model = compartment_model
+        self.validate()
+
+    @classmethod
+    def default_1tcm(cls, **kwargs):
+        return cls(input_tac_path='',
+                   roi_tacs_dir='',
+                   output_directory='',
+                   output_prefix='',
+                   compartment_model='1tcm',
+                   **kwargs)
+
+    @classmethod
+    def default_serial2tcm(cls, **kwargs):
+        return cls(input_tac_path='',
+                   roi_tacs_dir='',
+                   output_directory='',
+                   output_prefix='',
+                   compartment_model='serial-2tcm',
+                   **kwargs)
+
+    @classmethod
+    def default_irreversible_2tcm(cls, **kwargs):
+        return cls(input_tac_path='',
+                   roi_tacs_dir='',
+                   output_directory='',
+                   output_prefix='',
+                   compartment_model='2tcm-k4zero',
+                   **kwargs)
+
+
 class TCMFittingAnalysisStep(ObjectBasedStep, TACAnalysisStepMixin):
     """
     A step for fitting compartment models to TAC data using
