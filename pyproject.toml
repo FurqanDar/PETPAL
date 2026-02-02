@@ -12,7 +12,16 @@ authors = [
     {name = "Furqan Dar", email = "dar@wustl.edu"},
     {name = "Kenan Oestreich", email = "kenan.oestreich@wustl.edu"}
 ]
-requires-python = ">= 3.12" # At least Python 3.12
+requires-python = ">= 3.12"
+readme = "README.md"
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Programming Language :: Python :: 3",
+]
 dependencies = [
     "docker",
     "numpy",
@@ -24,40 +33,43 @@ dependencies = [
     "fslpy",
     "SimpleITK",
     "matplotlib",
-    "sphinx",
-    "sphinx-autoapi",
-    "sphinx-design",
-    "pydata-sphinx-theme",
     "bids_validator",
     "seaborn",
     "networkx",
     "scikit-learn",
-    "lmfit"
+    "lmfit",
 ]
-readme = "README.md"
-classifiers = [  # These are added to PyPI package when published; Used for searching
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "Development Status :: 2 - Pre-Alpha",
-    "Intended Audience :: Science/Research",
-    "Natural Language :: English",
-    "Topic :: Scientific/Engineering :: Image Processing",
-    # Python Versions (This does NOT restrict in any way; merely for PyPI searches)
-    "Programming Language :: Python :: 3",
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-autoapi",
+    "sphinx-design",
+    "pydata-sphinx-theme",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+dev = [
+    "petpal[docs,test]",
+    "flake8",
+    "ruff",
 ]
 
 [project.scripts]
-    petpal-preproc = "petpal.cli.cli_preproc:main"
-    petpal-tac-interpolate = "petpal.cli.cli_tac_interpolation:main"
-    petpal-graph-plot = "petpal.cli.cli_graphical_plots:main"
-    petpal-graph-analysis = "petpal.cli.cli_graphical_analysis:main"
-    petpal-parametric-image = "petpal.cli.cli_parametric_images:main"
-    petpal-tcm-fit = "petpal.cli.cli_tac_fitting:main"
-    petpal-rtms = "petpal.cli.cli_reference_tissue_models:main"
-    petpal-vat-proc = "petpal.cli.cli_vat_processing:main"
-    petpal-pib-proc = "petpal.cli.cli_pib_processing:main"
-    petpal-pvc = "petpal.cli.cli_pvc:main"
-    petpal-plot-tacs = "petpal.cli.cli_plot_tacs:main"
-    petpal-pet-stats = "petpal.cli.cli_stats:main"
+petpal-preproc = "petpal.cli.cli_preproc:main"
+petpal-tac-interpolate = "petpal.cli.cli_tac_interpolation:main"
+petpal-graph-plot = "petpal.cli.cli_graphical_plots:main"
+petpal-graph-analysis = "petpal.cli.cli_graphical_analysis:main"
+petpal-parametric-image = "petpal.cli.cli_parametric_images:main"
+petpal-tcm-fit = "petpal.cli.cli_tac_fitting:main"
+petpal-rtms = "petpal.cli.cli_reference_tissue_models:main"
+petpal-vat-proc = "petpal.cli.cli_vat_processing:main"
+petpal-pib-proc = "petpal.cli.cli_pib_processing:main"
+petpal-pvc = "petpal.cli.cli_pvc:main"
+petpal-plot-tacs = "petpal.cli.cli_plot_tacs:main"
+petpal-pet-stats = "petpal.cli.cli_stats:main"
 
 [project.urls]
-    Repository = "https://github.com/PETPAL-WUSM/PETPAL.git"
+Repository = "https://github.com/PETPAL-WUSM/PETPAL.git"

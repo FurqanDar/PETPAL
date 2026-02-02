@@ -114,6 +114,10 @@ ipython_config.py
 .pdm-python
 .pdm-build/
 
+# uv
+#   uv.lock is committed to version control for reproducible development environments.
+#   See: https://docs.astral.sh/uv/concepts/projects/#project-lockfile
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
 
