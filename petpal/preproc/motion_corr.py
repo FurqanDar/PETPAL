@@ -584,6 +584,8 @@ class MotionCorrect:
             save_xfm (bool): Saves motion correction transform parameters for translation,
                 rotation, and rotation center point. Only compatible with rigid transforms. Default
                 True.
+            reg_kwargs (keyword arguments): Keyword arguments to pass on to the registration
+                function. See :py:func:`~ants.registration`.
         """
         self.set_input_scan_properties(input_image_path=input_image_path)
         self.set_target_img(input_image_path=input_image_path,
