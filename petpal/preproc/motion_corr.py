@@ -500,14 +500,16 @@ class MotionCorrect:
     def register_windows(self, window_duration: float=300):
         """Run motion correction on the input image to the target image."""
         window_xfm_stack = []
+        window_index_pairs = self.window_index_pairs(window_duration=window_duration)
 
-        for _, (st_id, end_id) in enumerate(zip(*self.window_index_pairs(window_duration=window_duration))):
-            window_target_img = self.window_target_img(start_index=st_id, end_index=end_id)
+        for _, (start_index, end_index) in enumerate(zip(*window_index_pairs)):
+            window_target_img = self.window_target_img(start_index=start_index,
+                                                       end_index=end_index)
             window_registration = ants.registration(fixed=self.target_img,
                                                     moving=window_target_img,
                                                     **self.reg_kwargs)
             window_xfm = ants.read_transform(window_registration['fwdtransforms'])
-            for _ in range(st_id, end_id):
+            for _ in range(start_index, end_index):
                 window_xfm_stack.append(window_xfm)
 
         return window_xfm_stack
