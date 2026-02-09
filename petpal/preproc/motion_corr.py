@@ -477,8 +477,20 @@ class MotionCorrect:
                                                      input_image_path=input_image_path)
         self.target_img = self.image_loader.load(filename=motion_target_path)
 
-    def window_index_pairs(self, window_duration: float=300):
-        """The pair of indices corresponding to each window in the image."""
+    def window_index_pairs(self, window_duration: float=300) -> np.ndarray:
+        """The pair of indices corresponding to each window in the image.
+        
+        Args:
+            window_duration (float): Scan will be divided into windows of this duration in
+                seconds.
+            
+        Returns:
+            window_index_pairs (np.ndarray): Array of start and end frame indices for each
+                window.
+        
+        See also:
+            - :meth:`~petpal.utils.scan_timing.get_window_index_pairs_from_durations`
+        """
         return get_window_index_pairs_from_durations(frame_durations=self.scan_timing.duration,
                                                      window_duration=window_duration)
 
