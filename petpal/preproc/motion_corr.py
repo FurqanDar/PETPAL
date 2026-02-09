@@ -458,13 +458,21 @@ class MotionCorrect:
         self.reg_kwargs.update(**reg_kwargs)
 
     def set_input_scan_properties(self, input_image_path: str):
-        """Load input image and get half life and scan timing."""
+        """Load input image and get half life and scan timing. Set as MotionCorrect attributes.
+        
+        Args:
+            input_image_path (str): Path to dynamic PET image."""
         self.input_img = self.image_loader.load(filename=input_image_path)
         self.half_life = get_half_life_from_nifti(image_path=input_image_path)
         self.scan_timing = ScanTimingInfo.from_nifti(image_path=input_image_path)
 
     def set_target_img(self, input_image_path: str, motion_target_option: str | tuple):
-        """Get the motion target and load it as an image."""
+        """Get the motion target, load it as an image, and set as an attribute.
+        
+        Args:
+            input_image_path (str): Path to dynamic PET image.
+            motion_target_option (str | tuple): Option for motion target. See
+                :meth:`~petpal.preproc.motion_target.determine_motion_target.` for details."""
         motion_target_path = determine_motion_target(motion_target_option=motion_target_option,
                                                      input_image_path=input_image_path)
         self.target_img = self.image_loader.load(filename=motion_target_path)
