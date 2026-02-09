@@ -497,36 +497,48 @@ class MotionCorrect:
         xfm_out = list(rot_pars)+list(translate_matrix)+list(ants_xfm.fixed_parameters)
         return xfm_out
 
-    def run_motion_correct(self, window_duration: float=300):
+    def register_windows(self, window_duration: float=300):
         """Run motion correction on the input image to the target image."""
-        moco_img_stack = []
         window_xfm_stack = []
-        input_img_list = ants.ndimage_to_list(self.input_img)
+
         for _, (st_id, end_id) in enumerate(zip(*self.window_index_pairs(window_duration=window_duration))):
             window_target_img = self.window_target_img(start_index=st_id, end_index=end_id)
             window_registration = ants.registration(fixed=self.target_img,
                                                     moving=window_target_img,
                                                     **self.reg_kwargs)
             window_xfm = ants.read_transform(window_registration['fwdtransforms'])
-            window_xfm_stack.append(self.ants_xfm_to_rigid_pars(window_xfm))
-            for frm_id in range(st_id, end_id):
-                moco_img_stack.append(ants.apply_transforms(fixed=self.target_img,
-                                      moving=input_img_list[frm_id],
-                                      transformlist=window_registration['fwdtransforms']))
-        moco_img = gen_timeseries_from_image_list(moco_img_stack)
-        return moco_img, np.asarray(window_xfm_stack)
+            for _ in range(st_id, end_id):
+                window_xfm_stack.append(window_xfm)
 
-    def save_xfm_parameters(self, window_xfms: np.ndarray, filename: str):
-        """Save window transform parameters as a table.
+        return window_xfm_stack
+
+    def apply_motion_correction(self, frame_xfms):
+        """Apply transforms to input image"""
+        input_img_list = ants.ndimage_to_list(self.input_img)
+        moco_img_stack = []
+
+        for frame_index, frame_img in enumerate(input_img_list):
+            frame_xfm = frame_xfms[frame_index]
+            moco_frame_img = frame_xfm.apply_to_image(image=frame_img,
+                                                      reference=self.target_img)
+            moco_img_stack.append(moco_frame_img)
+
+        moco_img = gen_timeseries_from_image_list(moco_img_stack)
+        return moco_img
+
+    def save_xfm_parameters(self, frame_xfms: list[ants.ANTsTransform], filename: str):
+        """Save frame transform parameters as a table.
 
         Args:
-            window_xfms (np.ndarray): Rigid transform parameters ordered as rotation, translation,
-                centerpoint, then X, Y, Z axis, totalling 9 parameters for each window.
+            frame_xfms (np.ndarray): Rigid transform parameters ordered as rotation, translation,
+                centerpoint, then X, Y, Z axis, totalling 9 parameters for each frame.
             filename (str): Path to where table will be saved, including extension.
 
         Raises:
             ValueError: If transform type does not containt 'Rigid'. Saving transform parameters is
                 currently only available for rigid transforms."""
+        frame_xfm_pars = [self.ants_xfm_to_rigid_pars(ants_xfm=xfm) for xfm in frame_xfms]
+
         if 'Rigid' not in self.reg_kwargs['type_of_transform']:
             raise ValueError("Saving transform parameters is only available for rigid "
                              "registrations. Current transform type: "
@@ -540,9 +552,9 @@ class MotionCorrect:
                        'cen_x',
                        'cen_y',
                        'cen_z']
-        xfms_df = pd.DataFrame(data=window_xfms,
+        xfms_df = pd.DataFrame(data=frame_xfm_pars,
                                columns=xfm_columns)
-        xfms_df.index.name = 'window'
+        xfms_df.index.name = 'frame'
         csv_filename = coerce_outpath_extension(path=filename, ext='.csv')
         self.table_saver.save(xfms_df,csv_filename)
 
@@ -577,10 +589,11 @@ class MotionCorrect:
 
         self.set_reg_kwargs(**reg_kwargs)
 
-        moco_img, window_xfms = self.run_motion_correct(window_duration=window_duration)
+        frame_xfms = self.register_windows(window_duration=window_duration)
+        moco_img = self.apply_motion_correction(frame_xfms=frame_xfms)
 
         if save_xfm:
-            self.save_xfm_parameters(window_xfms=window_xfms, filename=output_image_path)
+            self.save_xfm_parameters(frame_xfms=frame_xfms, filename=output_image_path)
         ants.image_write(image=moco_img, filename=output_image_path)
         if copy_metadata:
             safe_copy_meta(input_image_path=input_image_path, out_image_path=output_image_path)
