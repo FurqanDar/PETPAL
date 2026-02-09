@@ -457,13 +457,13 @@ class MotionCorrect:
         """Modify the registration arguments passed on to :py:func:`~ants.registration`."""
         self.reg_kwargs.update(**reg_kwargs)
 
-    def get_input_scan_properties(self, input_image_path: str):
+    def set_input_scan_properties(self, input_image_path: str):
         """Load input image and get half life and scan timing."""
         self.input_img = self.image_loader.load(filename=input_image_path)
         self.half_life = get_half_life_from_nifti(image_path=input_image_path)
         self.scan_timing = ScanTimingInfo.from_nifti(image_path=input_image_path)
 
-    def get_target_img(self, input_image_path: str, motion_target_option: str | tuple):
+    def set_target_img(self, input_image_path: str, motion_target_option: str | tuple):
         """Get the motion target and load it as an image."""
         motion_target_path = determine_motion_target(motion_target_option=motion_target_option,
                                                      input_image_path=input_image_path)
@@ -585,8 +585,8 @@ class MotionCorrect:
                 rotation, and rotation center point. Only compatible with rigid transforms. Default
                 True.
         """
-        self.get_input_scan_properties(input_image_path=input_image_path)
-        self.get_target_img(input_image_path=input_image_path,
+        self.set_input_scan_properties(input_image_path=input_image_path)
+        self.set_target_img(input_image_path=input_image_path,
                             motion_target_option=motion_target_option)
 
         self.set_reg_kwargs(**reg_kwargs)
