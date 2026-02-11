@@ -180,7 +180,8 @@ class MotionCorrect:
         csv_filename = coerce_outpath_extension(path=filename, ext='.csv')
         self.table_saver.save(xfms_df,csv_filename)
 
-    def __call__(self, input_image_path: str,
+    def __call__(self,
+                 input_image_path: str,
                  output_image_path: str,
                  motion_target_option: str | tuple,
                  window_duration: float = 300,
