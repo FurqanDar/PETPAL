@@ -23,7 +23,15 @@ from ..io.image import ImageLoader
 
 
 class MotionCorrect:
-    """Run windowed motion correction on an image and save the result"""
+    """Run windowed motion correction on an image and save the result.
+    
+    :ivar image_loader: :func:`~petpal.io.image.ImageLoader` instance or injectable replacement
+    :ivar table_saver: :func:`~petpal.io.table.TableSaver` instance or injectable replacement
+    :ivar input_img: (ants.ANTsImage) Dynamic PET image
+    :ivar target_img: (ants.ANTsImage) Static target image
+    :ivar scan_timing: :func:`~petpal.utils.scan_timing.ScanTimingInfo` Dynamic PET scan timing.
+    :ivar half_life: (float) Half life of the PET tracer in seconds.
+    :ivar: reg_kwargs: (dict) Keyword arguments passed on to :py:func:`~ants.registration`"""
     def __init__(self,
                  image_loader: Optional[ImageLoader] = None,
                  table_saver: Optional[TableSaver] = None):
