@@ -187,7 +187,7 @@ class MotionCorrect:
                  window_duration: float = 300,
                  copy_metadata: bool = True,
                  save_xfm: bool = True,
-                 **reg_kwargs):
+                 **reg_kwargs) -> ants.ANTsImage:
         """Motion correct a dynamic PET image.
 
         Divides image into segments of duration in seconds `window_duration` and register each frame
@@ -207,6 +207,9 @@ class MotionCorrect:
                 True.
             reg_kwargs (keyword arguments): Keyword arguments to pass on to the registration
                 function. See :py:func:`~ants.registration`.
+
+        Returns:
+            moco_img (ants.ANTsImage): Motion corrected dynamic PET image.
         """
         self.set_input_scan_properties(input_image_path=input_image_path)
         self.set_target_img(input_image_path=input_image_path,
