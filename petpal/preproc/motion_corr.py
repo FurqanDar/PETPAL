@@ -296,44 +296,18 @@ def windowed_motion_corr_to_target(input_image_path: str,
     Note:
         If `out_image_path` is provided, the corrected 4D image will be saved to the specified path.
     """
-    input_image = ants.image_read(filename=input_image_path)
-    input_image_list = ants.ndimage_to_list(input_image)
-    window_idx_pairs = get_window_index_pairs_for_image(image_path=input_image_path, window_duration=window_duration)
-    half_life = get_half_life_from_nifti(image_path=input_image_path)
-    frame_timing_info = ScanTimingInfo.from_nifti(image_path=input_image_path)
-
-    target_image = determine_motion_target(motion_target_option=motion_target_option,
-                                           input_image_path=input_image_path)
-    target_image = ants.image_read(target_image)
-
     reg_kwargs_default = {'aff_metric'               : 'mattes',
-                          'write_composite_transform': True}
+                          'write_composite_transform': True,
+                          'type_of_transform': type_of_transform,
+                          'interpolator': interpolator}
     reg_kwargs = {**reg_kwargs_default, **kwargs}
 
-    out_image = []
-    for _, (st_id, end_id) in enumerate(zip(*window_idx_pairs)):
-        window_tgt_image = weighted_series_sum_over_window_indices(input_image_4d=input_image,
-                                                                   output_image_path=None,
-                                                                   window_start_id=st_id,
-                                                                   window_end_id=end_id,
-                                                                   half_life=half_life,
-                                                                   image_frame_info=frame_timing_info)
-        window_registration = ants.registration(fixed=target_image,
-                                                moving=window_tgt_image,
-                                                type_of_transform=type_of_transform,
-                                                interpolator=interpolator,
-                                                **reg_kwargs)
-        for frm_id in range(st_id, end_id):
-            out_image.append(ants.apply_transforms(fixed=target_image,
-                                                   moving=input_image_list[frm_id],
-                                                   transformlist=window_registration['fwdtransforms']))
-
-    out_image = gen_timeseries_from_image_list(out_image)
-
-    if out_image_path is not None:
-        ants.image_write(image=out_image, filename=out_image_path)
-
-    if copy_metadata:
-        image_io.safe_copy_meta(input_image_path=input_image_path,
-                                out_image_path=out_image_path)
-    return out_image
+    motion_corrector = MotionCorrect()
+    moco_img = motion_corrector(input_image_path=input_image_path,
+                                output_image_path=out_image_path,
+                                motion_target_option=motion_target_option,
+                                window_duration=window_duration,
+                                copy_metadata=copy_metadata,
+                                save_xfm=False
+                                **reg_kwargs)
+    return moco_img
