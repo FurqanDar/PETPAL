@@ -534,8 +534,15 @@ class MotionCorrect:
 
         return window_xfm_stack
 
-    def apply_motion_correction(self, frame_xfms):
-        """Apply transforms to input image"""
+    def apply_motion_correction(self, frame_xfms: list[ants.ANTsTransform]) -> ants.ANTsImage:
+        """Apply transforms to input image.
+        
+        Args:
+            frame_xfms (list[ants.ANTsTransform]): Transforms for each frame in the input image.
+
+        Returns:
+            moco_img (ants.ANTsImage): Motion corrected dynamic PET image.
+        """
         input_img_list = ants.ndimage_to_list(self.input_img)
         moco_img_stack = []
 
