@@ -328,9 +328,9 @@ def _generate_args() -> argparse.ArgumentParser:
                                 required=True)
 
 
-    parser_window_moco = subparsers.add_parser('windowed-motion-corr',
-                                               help='Windowed motion correction for 4D PET'
-                                                    ' using ANTS')
+    parser_window_moco = subparsers.add_parser('motion-correct',
+                                               help='Correct for inter-frame motion in dynamic PET '
+                                                    'images')
     _add_common_args(parser_window_moco)
     parser_window_moco.add_argument('--motion-target', default=None, nargs='+',
                             help="Motion target option. Can be an image path, "
@@ -439,12 +439,6 @@ def main():
                                                     out_image_path=args.out_img,
                                                     thresh_val=args.thresh_val,
                                                     verbose=True)
-        case 'motion_correction':
-            motion_corr.motion_corr(input_image_path=args.input_img,
-                                    out_image_path=args.out_img,
-                                    motion_target_option=motion_target,
-                                    verbose=True,
-                                    type_of_transform=args.transform_type)
         case 'register_pet':
             register.register_pet(input_reg_image_path=args.input_img,
                                 out_image_path=args.out_img,
@@ -483,7 +477,7 @@ def main():
                                        ref_region=args.ref_region,
                                        start_time=args.start_time,
                                        end_time=args.end_time)
-        case 'windowed_motion_corr':
+        case 'motion_correct':
             motion_corrector = motion_corr.MotionCorrect()
             motion_corrector(input_image_path=args.input_img,
                              output_image_path=args.out_img,
