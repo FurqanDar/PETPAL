@@ -10,14 +10,14 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 
-from petpal.utils.useful_functions import gen_nd_image_based_on_image_list
 from .motion_target import determine_motion_target
 from ..utils import image_io
 from ..utils.scan_timing import (ScanTimingInfo,
                                  get_window_index_pairs_from_durations,
                                  get_window_index_pairs_for_image)
 from ..utils.useful_functions import (weighted_series_sum_over_window_indices,
-                                      coerce_outpath_extension)
+                                      coerce_outpath_extension,
+                                      gen_nd_image_based_on_image_list)
 from ..utils.image_io import get_half_life_from_nifti, safe_copy_meta
 from ..io.table import TableSaver
 from ..io.image import ImageLoader
