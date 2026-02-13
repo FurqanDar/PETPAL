@@ -14,8 +14,9 @@ import nibabel
 from nibabel import processing
 import pandas as pd
 
-from ..utils.useful_functions import (gen_nd_image_based_on_image_list,
-                                      check_physical_space_for_ants_image_pair,
+from ..utils.timeseries_from_img_list import gen_nd_image_based_on_image_list
+
+from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
                                       get_average_of_timeseries)
 from ..utils import math_lib
 
