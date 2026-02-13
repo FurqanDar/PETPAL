@@ -5,6 +5,7 @@ Provides methods to motion correct 4D PET data. Includes method
 registration.
 """
 from typing import Optional
+from warnings import warn
 import ants
 import numpy as np
 import pandas as pd
@@ -226,7 +227,13 @@ class MotionCorrect:
         moco_img = self.apply_motion_correction(frame_xfms=frame_xfms)
 
         if save_xfm:
-            self.save_xfm_parameters(frame_xfms=frame_xfms, filename=output_image_path)
+            if 'Rigid' in self.reg_kwargs['type_of_transform']:
+                self.save_xfm_parameters(frame_xfms=frame_xfms, filename=output_image_path)
+            else:
+                warn("Saving transform parameters is only available for rigid "
+                     "registrations. Current transform type: "
+                     f"{self.reg_kwargs['type_of_transform']}.")
+
         ants.image_write(image=moco_img, filename=output_image_path)
         if copy_metadata:
             safe_copy_meta(input_image_path=input_image_path, out_image_path=output_image_path)
