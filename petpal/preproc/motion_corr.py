@@ -14,12 +14,11 @@ from .motion_target import determine_motion_target
 from ..utils.scan_timing import (ScanTimingInfo,
                                  get_window_index_pairs_from_durations)
 from ..utils.useful_functions import (weighted_series_sum_over_window_indices,
-                                      coerce_outpath_extension,
-                                      gen_nd_image_based_on_image_list)
+                                      coerce_outpath_extension)
+from ..utils.timeseries_from_img_list import timeseries_from_img_list
 from ..utils.image_io import get_half_life_from_nifti, safe_copy_meta
 from ..io.table import TableSaver
 from ..io.image import ImageLoader
-
 
 
 class MotionCorrect:
@@ -151,7 +150,7 @@ class MotionCorrect:
                                                       reference=self.target_img)
             moco_img_stack.append(moco_frame_img)
 
-        moco_img = gen_timeseries_from_image_list(moco_img_stack)
+        moco_img = timeseries_from_img_list(moco_img_stack)
         return moco_img
 
     def save_xfm_parameters(self, frame_xfms: list[ants.ANTsTransform], filename: str):
@@ -233,21 +232,6 @@ class MotionCorrect:
             safe_copy_meta(input_image_path=input_image_path, out_image_path=output_image_path)
 
         return moco_img
-
-def gen_timeseries_from_image_list(image_list: list[ants.core.ANTsImage]) -> ants.core.ANTsImage:
-    r"""
-    Takes a list of ANTs ndimages, and generates a 4D ndimage. Undoes :func:`ants.ndimage_to_list`
-    so that we take a list of 3D images and generates a 4D image.
-
-    Args:
-        image_list (list[ants.core.ANTsImage]): A list of ndimages.
-
-    Returns:
-        ants.core.ANTsImage: 4D ndimage.
-    """
-    tmp_image = gen_nd_image_based_on_image_list(image_list)
-    return ants.list_to_ndimage(tmp_image, image_list)
-
 
 def windowed_motion_corr_to_target(input_image_path: str,
                                    out_image_path: str | None,
