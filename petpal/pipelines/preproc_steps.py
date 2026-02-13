@@ -596,34 +596,6 @@ class ImageToImageStep(FunctionBasedStep):
         except RuntimeError as err:
             warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
             return cls(**defaults)
-    
-    @classmethod
-    def default_moco_frames_above_mean(cls, name: str = 'moco_frames_above_mean', verbose=False, **overrides):
-        """
-        Creates a default instance for motion correction frames above mean value using
-        :func:`motion_corr_frames_above_mean_value<petpal.preproc.motion_corr.motion_corr_frames_above_mean_value>`.
-        All paths are empty-strings.
-
-        Args:
-            name (str): Name of the step. Defaults to 'moco_frames_above_mean'
-            verbose (bool): Whether to run in verbose mode.
-            **overrides: Override default parameters.
-
-        Returns:
-            ImageToImageStep: A new instance for motion correction frames above mean value.
-        """
-        defaults = dict(name=name,
-                        function=motion_corr_frames_above_mean_value,
-                        input_image_path='',
-                        output_image_path='',
-                        motion_target_option='mean_image',
-                        verbose=verbose)
-        override_dict = defaults | overrides
-        try:
-            return cls(**override_dict)
-        except RuntimeError as err:
-            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
-            return cls(**defaults)
 
     @classmethod
     def default_windowed_moco(cls, name: str = 'windowed_moco', verbose=False, **overrides):
