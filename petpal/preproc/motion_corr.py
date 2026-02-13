@@ -202,7 +202,7 @@ class MotionCorrect:
             input_image_path (str): Path to dynamic PET image.
             output_image_path (str): Path to which motion corrected image is saved.
             motion_target_option (str | tuple): Path to motion target image, or specify time window
-                such as (0,600) or preset option such as 'mean_image'. See
+                such as (0,600) or preset option such as 'weighted_series_sum'. See
                 :py:func:`~petpal.preproc.motion_target.determine_motion_target`.
             window_duration (float): Duration of each window in seconds. Default 300.
             copy_metadata (bool): Copies metadata info from input image to output image. Default
