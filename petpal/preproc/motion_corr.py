@@ -93,8 +93,16 @@ class MotionCorrect:
         return get_window_index_pairs_from_durations(frame_durations=self.scan_timing.duration,
                                                      window_duration=window_duration)
 
-    def window_target_img(self, start_index: int, end_index: int):
-        """Calculates the sum over frames in the target image within the provided time window."""
+    def window_target_img(self, start_index: int, end_index: int) -> ants.ANTsImage:
+        """Calculates the sum over frames in the target image within the provided time window.
+        
+        Args:
+            start_index (int): Index for the frame that the window begins on.
+            end_index (int): Index for the frame that the window ends on.
+        
+        Returns:
+            window_img (ants.ANTsImage): Sum of frames in the input image between `start_index`
+                and `end_index`."""
         return weighted_series_sum_over_window_indices(input_image_4d=self.input_img,
                                                         output_image_path=None,
                                                         window_start_id=start_index,
