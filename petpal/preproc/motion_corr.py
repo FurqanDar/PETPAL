@@ -116,8 +116,19 @@ class MotionCorrect:
         xfm_out = list(rot_pars)+list(translate_matrix)+list(ants_xfm.fixed_parameters)
         return xfm_out
 
-    def register_windows(self, window_duration: float=300):
-        """Run motion correction on the input image to the target image."""
+    def register_windows(self, window_duration: float=300) -> list[ants.ANTsTransform]:
+        """Run motion correction on the input image to the target image.
+
+        Creates "windows" by summing over frames with total length equal to `window_duration` and
+        registering the window to the target image. Returns the calculated transforms for each
+        frame.
+
+        Args:
+            window_duration (float): Duration of each window to sum over.
+
+        Returns:
+            window_xfm_stack (list[ants.ANTsTransform]): The transform to apply to each frame
+                calculated based on the window the frame is in."""
         window_xfm_stack = []
         window_index_pairs = self.window_index_pairs(window_duration=window_duration)
 
