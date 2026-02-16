@@ -191,8 +191,7 @@ class MotionCorrect:
                  output_image_path: str,
                  motion_target_option: str | tuple,
                  window_duration: float = 300,
-                 copy_metadata: bool = True,
-                 save_xfm: bool = True,
+                 transform_type: str = 'DenseRigid',
                  **reg_kwargs) -> ants.ANTsImage:
         """Motion correct a dynamic PET image.
 
@@ -205,12 +204,9 @@ class MotionCorrect:
             motion_target_option (str | tuple): Path to motion target image, or specify time window
                 such as (0,600) or preset option such as 'weighted_series_sum'. See
                 :py:func:`~petpal.preproc.motion_target.determine_motion_target`.
+            transform_type (str):  Type of transform used in ants.registration. See
+                https://antspyx.readthedocs.io/en/latest/registration.html. Default DenseRigid.
             window_duration (float): Duration of each window in seconds. Default 300.
-            copy_metadata (bool): Copies metadata info from input image to output image. Default
-                True.
-            save_xfm (bool): Saves motion correction transform parameters for translation,
-                rotation, and rotation center point. Only compatible with rigid transforms. Default
-                True.
             reg_kwargs (keyword arguments): Keyword arguments to pass on to the registration
                 function. See :py:func:`~ants.registration`.
 
@@ -221,22 +217,20 @@ class MotionCorrect:
         self.set_target_img(input_image_path=input_image_path,
                             motion_target_option=motion_target_option)
 
-        self.set_reg_kwargs(**reg_kwargs)
+        self.set_reg_kwargs(type_of_transform=transform_type, **reg_kwargs)
 
         frame_xfms = self.register_windows(window_duration=window_duration)
         moco_img = self.apply_motion_correction(frame_xfms=frame_xfms)
 
-        if save_xfm:
-            if 'Rigid' in self.reg_kwargs['type_of_transform']:
-                self.save_xfm_parameters(frame_xfms=frame_xfms, filename=output_image_path)
-            else:
-                warn("Saving transform parameters is only available for rigid "
-                     "registrations. Current transform type: "
-                     f"{self.reg_kwargs['type_of_transform']}.")
+
+        if 'Rigid' in self.reg_kwargs['type_of_transform']:
+            self.save_xfm_parameters(frame_xfms=frame_xfms, filename=output_image_path)
+        else:
+            warn("Saving transform parameters is only available for rigid registrations. Current "
+                 f" transform type: {self.reg_kwargs['type_of_transform']}.")
 
         ants.image_write(image=moco_img, filename=output_image_path)
-        if copy_metadata:
-            safe_copy_meta(input_image_path=input_image_path, out_image_path=output_image_path)
+        safe_copy_meta(input_image_path=input_image_path, out_image_path=output_image_path)
 
         return moco_img
 
