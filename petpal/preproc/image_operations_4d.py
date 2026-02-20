@@ -26,8 +26,6 @@ import nibabel
 import numpy as np
 from scipy.ndimage import center_of_mass
 
-from .motion_target import determine_motion_target
-
 from ..utils import image_io, math_lib
 from .decay_correction import undo_decay_correction, decay_correct
 
