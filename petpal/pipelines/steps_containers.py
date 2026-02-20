@@ -215,7 +215,7 @@ class StepsContainer:
         """
         obj = cls(name=name)
         obj.add_step(ImageToImageStep.default_threshold_cropping())
-        obj.add_step(ImageToImageStep.default_moco_frames_above_mean())
+        obj.add_step(ImageToImageStep.default_windowed_moco())
         obj.add_step(ImageToImageStep.default_register_pet_to_t1())
         obj.add_step(TACsFromSegmentationStep.default_write_tacs_from_segmentation_rois())
         obj.add_step(ResampleBloodTACStep.default_resample_blood_tac_on_scanner_times())

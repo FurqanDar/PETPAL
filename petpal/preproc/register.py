@@ -12,7 +12,7 @@ from nibabel.processing import resample_from_to
 
 from .motion_target import determine_motion_target
 from ..utils import image_io
-from ..utils.useful_functions import check_physical_space_for_ants_image_pair
+from ..utils.dimension import check_physical_space_for_ants_image_pair
 
 
 def register_pet_to_pet(input_image_path: str,

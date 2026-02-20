@@ -10,6 +10,7 @@ from . import constants
 from . import scan_timing
 from . import metadata
 from . import stats
+from . import dimension
 
 def main():
     print("PETPAL - Utilities")

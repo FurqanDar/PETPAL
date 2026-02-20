@@ -7,8 +7,7 @@ from ..preproc.regional_tac_extraction import write_tacs
 from .steps_base import *
 from ..preproc.image_operations_4d import SimpleAutoImageCropper, rescale_image
 from ..preproc.register import register_pet, warp_pet_to_atlas
-from ..preproc.motion_corr import (motion_corr_frames_above_mean_value,
-                                   windowed_motion_corr_to_target)
+from ..preproc.motion_corr import windowed_motion_corr_to_target
 from ..input_function import blood_input
 from ..utils.bids_utils import parse_path_to_get_subject_and_session_id, snake_to_camel_case, gen_bids_like_dir_path, gen_bids_like_filepath
 from ..utils.image_io import safe_copy_meta
@@ -590,34 +589,6 @@ class ImageToImageStep(FunctionBasedStep):
         """
         defaults = dict(name=name, function=SimpleAutoImageCropper, input_image_path='',
                         output_image_path='', )
-        override_dict = defaults | overrides
-        try:
-            return cls(**override_dict)
-        except RuntimeError as err:
-            warnings.warn(f"Invalid override: {err}. Using default instance instead.", stacklevel=2)
-            return cls(**defaults)
-    
-    @classmethod
-    def default_moco_frames_above_mean(cls, name: str = 'moco_frames_above_mean', verbose=False, **overrides):
-        """
-        Creates a default instance for motion correction frames above mean value using
-        :func:`motion_corr_frames_above_mean_value<petpal.preproc.motion_corr.motion_corr_frames_above_mean_value>`.
-        All paths are empty-strings.
-
-        Args:
-            name (str): Name of the step. Defaults to 'moco_frames_above_mean'
-            verbose (bool): Whether to run in verbose mode.
-            **overrides: Override default parameters.
-
-        Returns:
-            ImageToImageStep: A new instance for motion correction frames above mean value.
-        """
-        defaults = dict(name=name,
-                        function=motion_corr_frames_above_mean_value,
-                        input_image_path='',
-                        output_image_path='',
-                        motion_target_option='mean_image',
-                        verbose=verbose)
         override_dict = defaults | overrides
         try:
             return cls(**override_dict)

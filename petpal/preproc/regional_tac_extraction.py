@@ -12,7 +12,7 @@ import pandas as pd
 from .segmentation_tools import combine_regions_as_mask
 from ..utils import image_io
 from ..utils.scan_timing import ScanTimingInfo
-from ..utils.useful_functions import check_physical_space_for_ants_image_pair
+from ..utils.dimension import check_physical_space_for_ants_image_pair
 from ..utils.time_activity_curve import TimeActivityCurve
 from ..meta.label_maps import LabelMapLoader
 

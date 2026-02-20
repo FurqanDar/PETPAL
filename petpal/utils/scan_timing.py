@@ -248,7 +248,8 @@ class ScanTimingInfo:
                    decay=frame_decay)
 
 
-def get_window_index_pairs_from_durations(frame_durations: np.ndarray, window_duration: float):
+def get_window_index_pairs_from_durations(frame_durations: np.ndarray,
+                                          window_duration: float) -> np.ndarray:
     r"""
     Computes start and end index pairs for windows of a given size based on frame durations.
 

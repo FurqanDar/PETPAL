@@ -18,11 +18,12 @@ import ants
 import numpy as np
 import numba
 
+from ..utils.dimension import gen_3d_img_from_timeseries
+
 from .reference_tissue_models import fit_mrtm2_2003_to_tac,calc_bp_from_mrtm2_2003_fit
 from .fit_tac_with_rtms import get_rtm_kwargs,get_rtm_method,get_rtm_output_size
 from ..utils.time_activity_curve import TimeActivityCurve
-from ..utils.useful_functions import (check_physical_space_for_ants_image_pair,
-                                      gen_3d_img_from_timeseries)
+from ..utils.dimension import (check_physical_space_for_ants_image_pair)
 from .graphical_analysis import get_graphical_analysis_method, get_index_from_threshold
 from ..input_function.blood_input import read_plasma_glucose_concentration
 from ..utils.image_io import safe_copy_meta

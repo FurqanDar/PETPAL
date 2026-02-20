@@ -4,9 +4,11 @@ uptake value ratio (SUVR).
 """
 import ants
 
+from ..utils.dimension import gen_3d_img_from_timeseries
+
 from ..utils.stats import mean_value_in_region
 from ..utils.math_lib import weighted_sum_computation
-from ..utils.useful_functions import gen_3d_img_from_timeseries, nearest_frame_to_timepoint
+from ..utils.useful_functions import nearest_frame_to_timepoint
 from ..utils.image_io import (get_half_life_from_nifti,
                               load_metadata_for_nifti_with_same_filename,
                               safe_copy_meta)
