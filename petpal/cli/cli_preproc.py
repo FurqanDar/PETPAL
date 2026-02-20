@@ -26,7 +26,7 @@ Examples:
 
    .. code-block:: bash
 
-       petpal-preproc windowed-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
+       petpal-preproc motion-correct -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
 
 
    * Register to anatomical:
@@ -114,7 +114,7 @@ Examples:
   - Auto crop:
     petpal-preproc auto-crop -i /path/to/input_img.nii.gz -o petpal_crop.nii.gz -t 0.05
   - Windowed moco:
-    petpal-preproc windowed-motion-corr -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
+    petpal-preproc motion-correct -i /path/to/input_img.nii.gz -o petpal_moco.nii.gz --window-size 120 --transform-type QuickRigid
   - Register to anatomical:
     petpal-preproc register-pet -i /path/to/input_img.nii.gz -o petpal_reg.nii.gz --motion-target 0 600 --anatomical /path/to/anat.nii.gz
   - Write regional tacs:

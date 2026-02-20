@@ -16,7 +16,7 @@ from ..utils.scan_timing import (ScanTimingInfo,
                                  get_window_index_pairs_from_durations)
 from ..utils.useful_functions import (weighted_series_sum_over_window_indices,
                                       coerce_outpath_extension)
-from ..utils.timeseries_from_img_list import timeseries_from_img_list
+from ..utils.dimension import timeseries_from_img_list
 from ..utils.image_io import get_half_life_from_nifti, safe_copy_meta
 from ..io.table import TableSaver
 from ..io.image import ImageLoader

@@ -2,7 +2,7 @@
 """
 import ants
 from .motion_target import determine_motion_target
-from ..utils.timeseries_from_img_list import timeseries_from_img_list
+from ..utils.dimension import timeseries_from_img_list
 from ..utils.image_io import safe_copy_meta
 
 def brain_mask_pet(input_image_path: str,
