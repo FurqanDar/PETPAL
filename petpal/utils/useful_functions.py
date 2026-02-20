@@ -379,34 +379,6 @@ def str_to_camel_case(input_str) -> str:
     return camel_case_str
 
 
-def get_frame_from_timeseries(input_img: ants.ANTsImage, frame: int) -> ants.ANTsImage:
-    """
-    Get a single frame of a 4D image as a 3D image.
-
-    A simplified version of :py:func:`ants.ndimage_to_list.ndimage_to_list`.
-
-    Args:
-        input_img (ants.ANTsImage): The 4D image from which to get the frame.
-        frame (int): The index of the frame to extract from the time series image.
-
-    Returns:
-        img_3d (ants.ANTsImage): The 3D first frame of the input image as an ants image.
-    """
-    dimension = input_img.dimension
-    subdimension = dimension - 1
-    suborigin = ants.get_origin( input_img )[0:subdimension]
-    subspacing = ants.get_spacing( input_img )[0:subdimension]
-    subdirection = np.eye( subdimension )
-    for i in range( subdimension ):
-        subdirection[i,:] = ants.get_direction( input_img )[i,0:subdimension]
-    img_3d = ants.slice_image( input_img, axis = subdimension, idx = frame )
-    ants.set_spacing( img_3d, subspacing )
-    ants.set_origin( img_3d, suborigin )
-    ants.set_direction( img_3d, subdirection )
-
-    return img_3d
-
-
 def nearest_frame_to_timepoint(frame_times: np.ndarray) -> Callable[[float],float]:
     """Returns a step function that gets the index of the frame closest to a provided timepoint
     based on an array of frame times, such as the frame starts or reference times.
