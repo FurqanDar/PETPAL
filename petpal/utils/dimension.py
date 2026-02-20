@@ -134,3 +134,34 @@ def get_frame_from_timeseries(input_img: ants.ANTsImage, frame: int) -> ants.ANT
     ants.set_direction( img_3d, subdirection )
 
     return img_3d
+
+
+def check_physical_space_for_ants_image_pair(image_1: ants.core.ANTsImage,
+                                             image_2: ants.core.ANTsImage,
+                                             tolerance: float=1e-2) -> bool:
+    """
+    Determines whether two ANTs images share the same physical space. This function works
+    when comparing 4D-images with 3D-images, as opposed to
+    :func:`ants.image_physical_space_consistency`.
+
+    This function validates whether the direction matrices, spacing values, and origins
+    of the two provided ANTs images are consistent, ensuring they reside in the same
+    physical space.
+
+    Args:
+        image_1 (ants.core.ANTsImage): The first ANTs image for comparison.
+        image_2 (ants.core.ANTsImage): The second ANTs image for comparison.
+        tolerance (float): Absolute tolerance for differences between components of the affine
+            transform matrix for the two images. Default 0.01.
+
+    Returns:
+        bool: `True` if both images share the same physical space, `False` otherwise.
+
+    """
+
+
+    dir_cons = np.allclose(image_1.direction[:3,:3], image_2.direction[:3,:3],atol=tolerance)
+    spc_cons = np.allclose(image_1.spacing[:3], image_2.spacing[:3],atol=tolerance)
+    org_cons = np.allclose(image_1.origin[:3], image_2.origin[:3],atol=tolerance)
+
+    return dir_cons and spc_cons and org_cons

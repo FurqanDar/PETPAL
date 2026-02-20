@@ -4,7 +4,7 @@ import numpy as np
 import ants
 
 from ..meta.label_maps import LabelMapLoader
-from .useful_functions import check_physical_space_for_ants_image_pair
+from .dimension import check_physical_space_for_ants_image_pair
 
 def mean_value_in_region(input_img: ants.ANTsImage,
                          seg_img: ants.ANTsImage,
