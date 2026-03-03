@@ -28,7 +28,7 @@ from .graphical_analysis import get_graphical_analysis_method, get_index_from_th
 from ..input_function.blood_input import read_plasma_glucose_concentration
 from ..utils.image_io import safe_copy_meta
 from ..utils.time_activity_curve import safe_load_tac
-
+from ..utils.dimension import gen_3d_img_from_timeseries
 
 @numba.njit()
 def apply_linearized_analysis_to_all_voxels(pTAC_times: np.ndarray,
@@ -273,7 +273,7 @@ def apply_rtm2_to_all_voxels(tac_times_in_minutes: np.ndarray,
                              tgt_image: np.ndarray,
                              ref_tac_vals: np.ndarray,
                              mask_img: np.ndarray,
-                             method: str = 'srtm2',
+                             method: str = 'mrtm2',
                              **analysis_kwargs) -> np.ndarray:
     """
     Generates parametric images for 4D-PET data using the SRTM2 reference tissue method.
@@ -294,8 +294,9 @@ def apply_rtm2_to_all_voxels(tac_times_in_minutes: np.ndarray,
             method.
     """
     bounds = False
-    if "bounds" in analysis_kwargs:
-        bounds = True
+    for kwarg in analysis_kwargs:
+        if "_bounds" in kwarg:
+            bounds = True
     analysis_func = get_rtm_method(method=method,bounds=bounds)
     img_dims = tgt_image.shape
     output_shape = get_rtm_output_size(method=method)
@@ -485,8 +486,7 @@ class ReferenceTissueParametricImage:
         mask_np = self.mask_image.numpy()
         tac_times_in_minutes = self.reference_tac.times
         ref_tac_vals = self.reference_tac.activity
-        method = self.method
-        rtm_method = get_rtm_method(method)
+        rtm_method = get_rtm_method(self.method)
         analysis_kwargs = get_rtm_kwargs(method=rtm_method,
                                          bounds=bounds,
                                          k2_prime=k2_prime,
@@ -496,7 +496,7 @@ class ReferenceTissueParametricImage:
                                                tgt_image=pet_np,
                                                ref_tac_vals=ref_tac_vals,
                                                mask_img=mask_np,
-                                               method=method,
+                                               method=self.method,
                                                **analysis_kwargs)
         self.fit_results = fit_results
 
@@ -507,11 +507,23 @@ class ReferenceTissueParametricImage:
         """
         fit_arr = self.fit_results
         pet_img = self.pet_image
-        fit_img = ants.from_numpy_like(data=fit_arr, image=pet_img)
+        if self.method=='mrtm2':
+            bp_img_template = gen_3d_img_from_timeseries(input_img=pet_img)
+            bp_arr = -(fit_arr[:,:,:,0]/fit_arr[:,:,:,1] + 1)
+            fit_img = ants.from_numpy_like(data=bp_arr, image=bp_img_template)
+        else:
+            fit_img = ants.from_numpy(data=fit_arr,
+                                    origin=pet_img.origin,
+                                    spacing=pet_img.spacing,
+                                    direction=pet_img.direction)
 
         try:
-            fit_image_path = os.path.join(self.output_directory,
-                                    f"{self.output_filename_prefix}_desc-rtmfit_pet.nii.gz")
+            if self.method=='mrtm2':
+                fit_image_path = os.path.join(self.output_directory,
+                                        f"{self.output_filename_prefix}_fit-mrtm2_bp.nii.gz")
+            else:
+                fit_image_path = os.path.join(self.output_directory,
+                                        f"{self.output_filename_prefix}_desc-rtmfit_pet.nii.gz")
             ants.image_write(fit_img,fit_image_path)
         except IOError as exc:
             print("An IOError occurred while attempting to write the NIfTI image files.")

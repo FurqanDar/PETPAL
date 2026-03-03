@@ -17,7 +17,7 @@ from .reference_tissue_models import (fit_frtm2_to_tac,
                                      fit_srtm_to_tac_with_bounds)
 from ..utils.time_activity_curve import TimeActivityCurve
 
-def get_rtm_method(method: str, bounds=None):
+def get_rtm_method(method: str, bounds=False):
     r"""Function for obtaining the appropriate reference tissue model.
 
     This function accepts a string specifying a reference tissue model (RTM) analysis method. It
@@ -81,7 +81,7 @@ def get_rtm_method(method: str, bounds=None):
                          "frtm": fit_frtm_to_tac,
                          "frtm2": fit_frtm2_to_tac}
 
-    if bounds is not None:
+    if bounds:
         return methods_with_bounds.get(method)
     return methods_no_bounds.get(method)
 
