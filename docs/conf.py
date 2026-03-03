@@ -1,12 +1,13 @@
 # # Configuration file for the Sphinx documentation builder.
 #
 from datetime import datetime
+import importlib.metadata
 
 project = 'PETPAL (Positron Emission Tomography Analysis Library)'
 year = datetime.today().year
 copyright = f'2024-{year}, Furqan Dar, Bradley Judge, Noah Goldman, Kenan Oestreich'
 author = 'Furqan Dar, Bradley Judge, Noah Goldman, Kenan Oestreich'
-release = '0.1.0'
+release = importlib.metadata.version('petpal')
 
 extensions = [
     'autoapi.extension',
@@ -36,7 +37,7 @@ html_theme_options = {
     "icon_links": [
             {
             "name": "GitHub",
-            "url" : "https://github.com/FurqanDar/PETPAL",
+            "url" : "https://github.com/PETPAL-WUSM/PETPAL",
             "icon": "fa-brands fa-github",
             },
                  ],
