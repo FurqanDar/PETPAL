@@ -52,6 +52,12 @@ def auto_cli(petpal_class: object):
         Additionally, any __call__ arguments and keyword arguments must be able to be specified from
         the command line, such as strings, integers, or floats.
 
+        Keyword arguments are only intended to be used with the CLI when it would be excessive and
+        cumbersome to implement all possible arguments of a function. Any expected user inputs
+        should be specified, documented, and type hinted in the __call__ args, reserve kwargs only
+        for providing user flexibility where necessary, as it carries the risk of unintended
+        behavior.
+
     Example:
         
         .. code-block:: python
