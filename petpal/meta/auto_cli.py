@@ -3,6 +3,27 @@ import argparse
 import inspect
 from pydoc import locate
 
+def args_kwargs_to_dictionary(args: argparse.Namespace) -> dict:
+    """Convert Namespace to dictionary and reassign keyword arguments to dictionary values.
+    
+    Args:
+        args (argparse.Namespace): The args resulting from parsing command line arguments.
+    
+    Returns:
+        arg_vals (dict): Dictionary with arguments and keyword arguments from inspecting the class
+            __call__ function.
+    """
+    arg_vals = vars(args)
+
+    for arg in arg_vals:
+        val = arg_vals[arg]
+        if isinstance(val, dict):
+            for kwarg in val:
+                arg_vals[kwarg] = val[kwarg]
+            arg_vals.pop(arg)
+
+    return arg_vals
+
 class ParseKwargs(argparse.Action):
     """Action to parse keyword arguments."""
     def __call__(self, parser, namespace, values, option_string=None):
@@ -27,7 +48,7 @@ def auto_cli(petpal_class: object):
                 from petpal.meta.auto_cli import auto_cli
                 import external_func
 
-                class my_class:
+                class MyClass:
                     mri_img: ants.ANTsImage
                     pet_img: ants.ANTsImage
 
@@ -68,15 +89,7 @@ def auto_cli(petpal_class: object):
             kwarg_name = arg_and_type[0].replace('**','--').replace('_','-')
             parser.add_argument(kwarg_name, nargs='*', action=ParseKwargs, required=False)
     args = parser.parse_args()
-    arg_vals = vars(args)
-
-    for arg in arg_vals:
-        val = arg_vals[arg]
-        if isinstance(val, dict):
-            for kwarg in val:
-                arg_vals[kwarg] = val[kwarg]
-            arg_vals.pop(arg)
-
+    arg_vals = args_kwargs_to_dictionary(args=args)
 
     init_class = petpal_class()
     init_class(**arg_vals)
