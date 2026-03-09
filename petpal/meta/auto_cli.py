@@ -10,26 +10,30 @@ def args_kwargs_to_dictionary(args: argparse.Namespace) -> dict:
         args (argparse.Namespace): The args resulting from parsing command line arguments.
     
     Returns:
-        arg_vals (dict): Dictionary with arguments and keyword arguments from inspecting the class
+        call_eval (dict): Dictionary with arguments and keyword arguments from inspecting the class
             __call__ function.
     """
     arg_vals = vars(args)
+    call_eval = arg_vals.copy()
 
     for arg in arg_vals:
-        val = arg_vals[arg]
-        if isinstance(val, dict):
-            for kwarg in val:
-                arg_vals[kwarg] = val[kwarg]
-            arg_vals.pop(arg)
+        value = arg_vals[arg]
+        if isinstance(value, dict):
+            for kwarg in value:
+                call_eval[kwarg] = value[kwarg]
+            call_eval.pop(arg)
 
-    return arg_vals
+    return call_eval
 
 class ParseKwargs(argparse.Action):
     """Action to parse keyword arguments."""
     def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, {})
         for value in values:
-            key, val = value.split('=')
-            setattr(namespace, key.replace('-','_'), val)
+            kwarg_type, kwarg_pair = value.split(':')
+            kwarg_locator = locate(kwarg_type)
+            kwarg_name, kwarg_value = kwarg_pair.split('=')
+            getattr(namespace, self.dest)[kwarg_name] = kwarg_locator(kwarg_value)
 
 
 def auto_cli(petpal_class: object):
