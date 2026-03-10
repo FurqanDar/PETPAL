@@ -25,14 +25,22 @@ def args_kwargs_to_dictionary(args: argparse.Namespace) -> dict:
 
     return call_eval
 
+
 class ParseKwargs(argparse.Action):
     """Action to parse keyword arguments."""
+    SUPPORTED_KWARG_TYPES = [str, float, int, bool]
+
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, {})
         for value in values:
             kwarg_type, kwarg_pair = value.split(':')
             kwarg_locator = locate(kwarg_type)
             kwarg_name, kwarg_value = kwarg_pair.split('=')
+
+            if kwarg_locator not in self.SUPPORTED_KWARG_TYPES:
+                raise TypeError(f"CLI Kwargs only supports types: {self.SUPPORTED_KWARG_TYPES}."
+                                f"Got {kwarg_locator}.")
+
             getattr(namespace, self.dest)[kwarg_name] = kwarg_locator(kwarg_value)
 
 
