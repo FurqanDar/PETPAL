@@ -58,6 +58,12 @@ class ParseKwargs(argparse.Action):
     SUPPORTED_KWARG_TYPES = [str, float, int, bool]
 
     def __call__(self, parser, namespace, values, option_string=None):
+        """Creates a dictionary within the args namespace holding keyword arguments.
+        
+        Kwargs are used like so: --kwargs int:frame=4
+        Each kwarg must specify type before a colon, followed by the argument name, an equals sign
+        to delimit the argument value. Kwargs are currently limited to a small number of standard
+        types: str, float, int, bool."""
         setattr(namespace, self.dest, {})
         for value in values:
             kwarg_type, kwarg_pair = value.split(':')
@@ -114,17 +120,17 @@ def auto_cli(petpal_class: object):
                     output_img = my_func(**kwargs)
                     ants.image_write(output_img, output_img)
             
-                def main():
-                    # Creates CLI for class my_class
-                    # __call__ args are interpreted as required arguments
-                    # **kwargs is interpreted as optional keyword arguments
-                    # usage: petpal my-class --mri-img-path [MRI_IMG_PATH] \
-                    #          --pet-img-path [PET_IMG_PATH] --kwargs [kwarg1=val1 kwarg2=val2 ...]
+            def main():
+                # Creates CLI for class my_class
+                # __call__ args are interpreted as required arguments
+                # **kwargs is interpreted as optional keyword arguments
+                # usage: petpal my-class --mri-img-path [MRI_IMG_PATH] \
+                #          --pet-img-path [PET_IMG_PATH] --kwargs [kwarg1=val1 kwarg2=val2 ...]
 
-                    auto_cli(petpal_class=my_class)
+                auto_cli(petpal_class=my_class)
 
-                if __name__=='__main__':
-                    main()
+            if __name__=='__main__':
+                main()
     """
     parser = argparse.ArgumentParser(prog=petpal_class.__name__,
                                      description=petpal_class.__call__.__doc__,
