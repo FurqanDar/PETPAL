@@ -1,4 +1,5 @@
 from . import label_maps
+from . import auto_cli
 
 def main():
     print("PETPAL - Meta")
