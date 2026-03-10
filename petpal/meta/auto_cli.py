@@ -3,6 +3,33 @@ import argparse
 import inspect
 from pydoc import locate
 
+
+def camel_to_kebab_case(name: str) -> str:
+    """Convert a string in camel case to kebab case.
+    
+    Camel case is used for class objects in Python, e.g. MyClass.
+    Kebab case is used for programs, such as my-prog.
+    This function converts a string in camel case to kebab case, for the purpose of assigning
+    CLI program names to callable class objects.
+    
+    Args:
+        name (str): The camel case phrase to be converted to kebab case.
+    
+    Returns:
+        kebab_name (str): Input phrase converted to kebab case.
+    """
+    if len(name)==1:
+        return name.lower()
+
+    kebab_name = name[0].lower()
+    for char in name[1:]:
+        if char.isupper():
+            kebab_name += f'-{char.lower()}'
+        else:
+            kebab_name += char
+    return kebab_name
+
+
 def args_kwargs_to_dictionary(args: argparse.Namespace) -> dict:
     """Convert Namespace to dictionary and reassign keyword arguments to dictionary values.
     
