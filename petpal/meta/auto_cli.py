@@ -125,7 +125,7 @@ def auto_cli(petpal_class: object):
 
                 if __name__=='__main__':
                     main()
-                    """
+    """
     parser = argparse.ArgumentParser(prog=petpal_class.__name__,
                                      description=petpal_class.__call__.__doc__,
                                      formatter_class=argparse.RawTextHelpFormatter)
